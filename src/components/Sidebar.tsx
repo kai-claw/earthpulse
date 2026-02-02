@@ -17,8 +17,9 @@ import {
   Volume2,
   VolumeX
 } from 'lucide-react';
-import { FilterState, Statistics, TimeRange, GlobePoint } from '../types';
-import { formatDate, formatRelativeTime, getMagnitudeDescription, getDepthDescription } from '../utils/helpers';
+import type { FilterState, Statistics, GlobePoint } from '../types';
+import { TIME_RANGES } from '../utils/constants';
+import { formatDate, formatRelativeTime, getMagnitudeDescription, getDepthDescription } from '../utils/formatting';
 
 interface SidebarProps {
   isCollapsed: boolean;
@@ -48,14 +49,6 @@ interface SidebarProps {
   audioEnabled: boolean;
   onToggleAudio: () => void;
 }
-
-const TIME_RANGES: TimeRange[] = [
-  { label: 'Last Hour', hours: 1 },
-  { label: 'Last 6 Hours', hours: 6 },
-  { label: 'Last Day', hours: 24 },
-  { label: 'Last Week', hours: 168 },
-  { label: 'Last Month', hours: 720 },
-];
 
 export default function Sidebar({
   isCollapsed,

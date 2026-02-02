@@ -1,22 +1,21 @@
-import { EarthquakeCollection, TectonicPlateCollection } from '../types';
-
-const USGS_BASE_URL = 'https://earthquake.usgs.gov/fdsnws/event/1/query';
+import type { EarthquakeCollection, TectonicPlateCollection } from '../types';
+import { USGS_BASE_URL, TECTONIC_PLATES_URL, DEFAULT_FETCH_LIMIT } from './constants';
 
 export async function fetchEarthquakes(
-  limit = 200,
+  limit = DEFAULT_FETCH_LIMIT,
   minMagnitude = 0,
-  hoursBack = 24
+  hoursBack = 24,
 ): Promise<EarthquakeCollection> {
   const endTime = new Date();
   const startTime = new Date(endTime.getTime() - (hoursBack * 60 * 60 * 1000));
-  
+
   const params = new URLSearchParams({
     format: 'geojson',
     limit: limit.toString(),
     minmagnitude: minMagnitude.toString(),
     starttime: startTime.toISOString(),
     endtime: endTime.toISOString(),
-    orderby: 'time-asc'
+    orderby: 'time-asc',
   });
 
   try {
@@ -31,11 +30,7 @@ export async function fetchEarthquakes(
   }
 }
 
-// Real tectonic plate boundary data from Hugo Ahlenius (fraxen/tectonicplates)
-const TECTONIC_PLATES_URL =
-  'https://raw.githubusercontent.com/fraxen/tectonicplates/master/GeoJSON/PB2002_boundaries.json';
-
-// Simplified fallback in case the fetch fails
+// Simplified fallback in case the live fetch fails
 const FALLBACK_PLATES: TectonicPlateCollection = {
   type: 'FeatureCollection',
   features: [
@@ -46,7 +41,7 @@ const FALLBACK_PLATES: TectonicPlateCollection = {
     { type: 'Feature', properties: { Name: 'South American Plate' }, geometry: { type: 'LineString', coordinates: [[-80,10],[-70,5],[-60,0],[-50,-5],[-40,-10],[-35,-20],[-40,-30],[-45,-40],[-50,-50],[-55,-55]] } },
     { type: 'Feature', properties: { Name: 'Indo-Australian Plate' }, geometry: { type: 'LineString', coordinates: [[90,10],[100,5],[110,0],[120,-5],[130,-10],[140,-15],[150,-20],[160,-25],[150,-35],[140,-40],[130,-45]] } },
     { type: 'Feature', properties: { Name: 'Antarctic Plate' }, geometry: { type: 'LineString', coordinates: [[-180,-60],[-120,-65],[-60,-70],[0,-65],[60,-60],[120,-65],[180,-60]] } },
-  ]
+  ],
 };
 
 export async function fetchTectonicPlates(): Promise<TectonicPlateCollection> {
@@ -54,7 +49,7 @@ export async function fetchTectonicPlates(): Promise<TectonicPlateCollection> {
     const response = await fetch(TECTONIC_PLATES_URL);
     if (!response.ok) throw new Error(`Plates fetch: ${response.status}`);
     const data = await response.json() as TectonicPlateCollection;
-    // Flatten any MultiLineString features into individual LineStrings
+    // Flatten MultiLineString features into individual LineStrings
     const flattened: TectonicPlateCollection = {
       type: 'FeatureCollection',
       features: data.features.flatMap(f => {
@@ -62,11 +57,11 @@ export async function fetchTectonicPlates(): Promise<TectonicPlateCollection> {
           return (f.geometry.coordinates as number[][][]).map(coords => ({
             type: 'Feature' as const,
             properties: f.properties,
-            geometry: { type: 'LineString' as const, coordinates: coords }
+            geometry: { type: 'LineString' as const, coordinates: coords },
           }));
         }
         return [f];
-      })
+      }),
     };
     return flattened;
   } catch {

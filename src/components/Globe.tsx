@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import GlobeGL from 'react-globe.gl';
-import { GlobePoint, TectonicPlateCollection } from '../types';
-import { getMagnitudeColor, generateSeismicRings } from '../utils/helpers';
+import type { GlobePoint, TectonicPlateCollection } from '../types';
+import { getMagnitudeColor } from '../utils/colors';
+import { generateSeismicRings } from '../utils/seismic';
 
 interface GlobeComponentProps {
   earthquakes: GlobePoint[];

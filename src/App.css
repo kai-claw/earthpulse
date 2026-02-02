@@ -2070,3 +2070,23 @@ input[type="range"]:focus-visible {
     to { opacity: 1; transform: translateY(0); filter: blur(0); }
   }
 }
+
+/* --- Globe Lazy-load Fallback --- */
+.globe-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 14px;
+  gap: 16px;
+}
+.globe-loading .loading-earth-pulse {
+  width: 60px;
+  height: 60px;
+}
+.globe-loading p {
+  animation: fadeInUp 0.5s ease-out;
+}
