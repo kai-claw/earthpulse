@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="50%" r="70%">
+      <stop offset="0%" stop-color="#1a2540"/>
+      <stop offset="100%" stop-color="#0a0e1a"/>
+    </radialGradient>
+    <radialGradient id="earth" cx="45%" cy="40%" r="50%">
+      <stop offset="0%" stop-color="#2563eb"/>
+      <stop offset="40%" stop-color="#1d4ed8"/>
+      <stop offset="100%" stop-color="#1e3a5f"/>
+    </radialGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#60a5fa" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#60a5fa" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="ringPulse" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ef4444" stop-opacity="0.6"/>
+      <stop offset="100%" stop-color="#ef4444" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bg)"/>
+
+  <!-- Stars -->
+  <circle cx="100" cy="80" r="1.2" fill="#fff" opacity="0.6"/>
+  <circle cx="250" cy="150" r="0.8" fill="#fff" opacity="0.4"/>
+  <circle cx="400" cy="60" r="1" fill="#fff" opacity="0.5"/>
+  <circle cx="550" cy="120" r="0.6" fill="#fff" opacity="0.3"/>
+  <circle cx="700" cy="40" r="1.2" fill="#fff" opacity="0.5"/>
+  <circle cx="850" cy="90" r="0.8" fill="#fff" opacity="0.4"/>
+  <circle cx="1000" cy="70" r="1" fill="#fff" opacity="0.6"/>
+  <circle cx="1100" cy="130" r="0.7" fill="#fff" opacity="0.35"/>
+  <circle cx="150" cy="500" r="0.9" fill="#fff" opacity="0.4"/>
+  <circle cx="1050" cy="520" r="1.1" fill="#fff" opacity="0.5"/>
+
+  <!-- Atmosphere glow -->
+  <circle cx="600" cy="300" r="200" fill="url(#glow)"/>
+
+  <!-- Earth globe -->
+  <circle cx="600" cy="300" r="140" fill="url(#earth)" stroke="#60a5fa" stroke-width="1" stroke-opacity="0.3"/>
+
+  <!-- Continent hints -->
+  <path d="M555 220 Q570 210 585 215 Q600 220 610 230 Q615 245 605 255 Q590 258 580 250 Q565 240 555 230 Z" fill="#1a7a3a" opacity="0.5"/>
+  <path d="M620 260 Q640 255 655 265 Q665 280 660 295 Q648 310 630 305 Q618 295 615 280 Z" fill="#1a7a3a" opacity="0.45"/>
+  <path d="M560 270 Q575 268 580 280 Q578 295 565 298 Q555 290 555 280 Z" fill="#1a7a3a" opacity="0.4"/>
+
+  <!-- Seismic ring pulse (expanding ring from quake) -->
+  <circle cx="620" cy="270" r="8" fill="url(#ringPulse)"/>
+  <circle cx="620" cy="270" r="20" fill="none" stroke="#ef4444" stroke-width="1.5" opacity="0.5"/>
+  <circle cx="620" cy="270" r="35" fill="none" stroke="#ef4444" stroke-width="1" opacity="0.25"/>
+  <circle cx="620" cy="270" r="50" fill="none" stroke="#ef4444" stroke-width="0.5" opacity="0.1"/>
+
+  <!-- Earthquake dots -->
+  <circle cx="555" cy="235" r="4" fill="#f59e0b" opacity="0.8"/>
+  <circle cx="640" cy="290" r="6" fill="#ef4444" opacity="0.9"/>
+  <circle cx="575" cy="290" r="3" fill="#818cf8" opacity="0.7"/>
+  <circle cx="620" cy="270" r="5" fill="#ef4444" opacity="0.9"/>
+  <circle cx="595" cy="250" r="3.5" fill="#f59e0b" opacity="0.75"/>
+
+  <!-- Tectonic plate line hint -->
+  <path d="M500 310 Q540 290 570 300 Q600 310 630 305 Q660 300 700 310" fill="none" stroke="#f59e0b" stroke-width="0.8" opacity="0.35" stroke-dasharray="4 3"/>
+
+  <!-- Title text -->
+  <text x="600" y="510" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="48" font-weight="700" fill="#ffffff" letter-spacing="2">
+    🌍 EarthPulse
+  </text>
+  <text x="600" y="550" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="18" fill="#94a3b8" letter-spacing="1">
+    Real-Time Seismic Globe — Live USGS Data
+  </text>
+
+  <!-- Subtle border -->
+  <rect x="2" y="2" width="1196" height="626" rx="8" fill="none" stroke="#1e3a5f" stroke-width="2" opacity="0.3"/>
+</svg>
