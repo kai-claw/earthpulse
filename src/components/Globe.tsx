@@ -109,11 +109,15 @@ export default function GlobeComponent({
 
   const pointLabel = useCallback((point: object) => {
     const p = point as GlobePoint;
+    const magColor = p.magnitude >= 6 ? '#ef4444' : p.magnitude >= 4 ? '#f59e0b' : '#60a5fa';
     return `
-      <div style="background: rgba(0,0,0,0.8); color: white; padding: 8px; border-radius: 4px; font-size: 12px;">
-        <strong>M${p.magnitude} - ${p.place}</strong><br/>
-        <strong>Depth:</strong> ${p.depth.toFixed(1)} km<br/>
-        <strong>Time:</strong> ${new Date(p.time).toLocaleString()}
+      <div style="background: rgba(10,14,26,0.92); color: white; padding: 12px 16px; border-radius: 10px; font-size: 12px; border: 1px solid rgba(255,255,255,0.12); backdrop-filter: blur(8px); min-width: 180px; box-shadow: 0 8px 24px rgba(0,0,0,0.4);">
+        <div style="font-size: 20px; font-weight: 800; color: ${magColor}; margin-bottom: 4px;">M${p.magnitude.toFixed(1)}</div>
+        <div style="font-weight: 600; margin-bottom: 8px; line-height: 1.3;">${p.place}</div>
+        <div style="color: rgba(255,255,255,0.6); display: flex; justify-content: space-between; gap: 16px;">
+          <span>Depth: ${p.depth.toFixed(1)} km</span>
+          <span>${new Date(p.time).toLocaleString()}</span>
+        </div>
       </div>
     `;
   }, []);
@@ -161,11 +165,11 @@ export default function GlobeComponent({
 
           // Paths (tectonic plates)
           pathsData={showTectonicPlates && tectonicPlates ? tectonicPlates.features : []}
-          pathColor={() => '#ff6b00'}
-          pathStroke={2}
-          pathDashLength={0.1}
-          pathDashGap={0.05}
-          pathDashAnimateTime={3000}
+          pathColor={() => 'rgba(255, 120, 30, 0.65)'}
+          pathStroke={1.5}
+          pathDashLength={0.08}
+          pathDashGap={0.04}
+          pathDashAnimateTime={4000}
 
           // Animation and interaction
           animateIn={true}
@@ -176,8 +180,8 @@ export default function GlobeComponent({
           enablePointerInteraction={true}
           showGlobe={true}
           showAtmosphere={true}
-          atmosphereColor="#ffffff"
-          atmosphereAltitude={0.15}
+          atmosphereColor="#6ba3ff"
+          atmosphereAltitude={0.2}
 
           width={dimensions.width}
           height={dimensions.height}

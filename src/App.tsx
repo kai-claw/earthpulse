@@ -21,8 +21,9 @@ import {
 } from './utils/helpers';
 import './App.css';
 
-const DEFAULT_TIME_RANGE: TimeRange = { label: 'Last Day', hours: 24 };
+const DEFAULT_TIME_RANGE: TimeRange = { label: 'Last Week', hours: 168 };
 const TOUR_DWELL_MS = 6000; // Time spent at each stop
+const CINEMATIC_INTERVAL = 14000; // Auto-cycle through big quakes
 
 function App() {
   // State management
@@ -62,6 +63,17 @@ function App() {
   const [tourProgress, setTourProgress] = useState(0);
   const tourTimerRef = useRef<number | null>(null);
   const tourProgressRef = useRef<number | null>(null);
+
+  // Cinematic Autoplay state
+  const [isCinematic, setIsCinematic] = useState(false);
+  const cinematicTimerRef = useRef<number | null>(null);
+  const cinematicProgressRef = useRef<number | null>(null);
+  const [cinematicProgress, setCinematicProgress] = useState(0);
+  const cinematicIndexRef = useRef(0);
+  const [cinematicStopKey, setCinematicStopKey] = useState(0);
+
+  // First-load auto-fly flag
+  const hasAutoFlown = useRef(false);
 
   // Filters
   const [filters, setFilters] = useState<FilterState>({
@@ -104,6 +116,19 @@ function App() {
     
     setFilteredEarthquakes(filtered);
     setStatistics(calculateStatistics(filtered));
+
+    // Auto-fly to biggest quake on first data load for instant wow
+    if (!hasAutoFlown.current && filtered.length > 0) {
+      hasAutoFlown.current = true;
+      const biggest = filtered.reduce((max, q) => q.magnitude > max.magnitude ? q : max, filtered[0]);
+      if (biggest.magnitude >= 2.5) {
+        // Small delay to let globe initialize first
+        setTimeout(() => {
+          setFlyToTarget(biggest);
+          setSelectedEarthquake(biggest);
+        }, 2000);
+      }
+    }
   }, [earthquakes, filters]);
 
   // Initial data fetch
@@ -232,6 +257,55 @@ function App() {
     setFlyToTarget(null);
   }, []);
 
+  // Cinematic Autoplay — auto-cycle through biggest quakes
+  const handleCinematicToggle = useCallback(() => {
+    setIsCinematic(prev => {
+      if (!prev) {
+        // Starting cinematic
+        const stops = getTourStops(filteredEarthquakes, 12);
+        if (stops.length === 0) return false;
+        cinematicIndexRef.current = 0;
+        setFlyToTarget(stops[0]);
+        setSelectedEarthquake(stops[0]);
+        setCinematicProgress(0);
+        return true;
+      } else {
+        // Stopping cinematic
+        if (cinematicTimerRef.current) clearTimeout(cinematicTimerRef.current);
+        if (cinematicProgressRef.current) clearInterval(cinematicProgressRef.current);
+        setCinematicProgress(0);
+        return false;
+      }
+    });
+  }, [filteredEarthquakes]);
+
+  // Cinematic autoplay timer
+  useEffect(() => {
+    if (!isCinematic) return;
+    const stops = getTourStops(filteredEarthquakes, 12);
+    if (stops.length === 0) { setIsCinematic(false); return; }
+
+    const startTime = Date.now();
+    cinematicProgressRef.current = window.setInterval(() => {
+      setCinematicProgress(Math.min(1, (Date.now() - startTime) / CINEMATIC_INTERVAL));
+    }, 33);
+
+    cinematicTimerRef.current = window.setTimeout(() => {
+      if (cinematicProgressRef.current) clearInterval(cinematicProgressRef.current);
+      cinematicIndexRef.current = (cinematicIndexRef.current + 1) % stops.length;
+      const next = stops[cinematicIndexRef.current];
+      setFlyToTarget(next);
+      setSelectedEarthquake(next);
+      setCinematicProgress(0);
+      setCinematicStopKey(k => k + 1);
+    }, CINEMATIC_INTERVAL);
+
+    return () => {
+      if (cinematicTimerRef.current) clearTimeout(cinematicTimerRef.current);
+      if (cinematicProgressRef.current) clearInterval(cinematicProgressRef.current);
+    };
+  }, [isCinematic, filteredEarthquakes, cinematicStopKey]);
+
   // Toggle seismic rings
   const handleToggleRings = useCallback(() => {
     setShowSeismicRings(prev => !prev);
@@ -278,8 +352,13 @@ function App() {
         case 'w': // "W" for waves/rings
           handleToggleRings();
           break;
+        case 'c': // "C" for cinematic autoplay
+          handleCinematicToggle();
+          break;
         case 'escape':
-          if (isTourActive) {
+          if (isCinematic) {
+            handleCinematicToggle();
+          } else if (isTourActive) {
             handleTourStop();
           } else if (selectedEarthquake) {
             setSelectedEarthquake(null);
@@ -290,7 +369,7 @@ function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleTimelapseToggle, handleTimelapseReset, selectedEarthquake, isTourActive, handleTourStart, handleTourStop, handleToggleRings]);
+  }, [handleTimelapseToggle, handleTimelapseReset, selectedEarthquake, isTourActive, isCinematic, handleTourStart, handleTourStop, handleToggleRings, handleCinematicToggle]);
 
   if (loading && earthquakes.length === 0) {
     return (
@@ -337,6 +416,8 @@ function App() {
           isTourActive={isTourActive}
           onTourStart={handleTourStart}
           onTourStop={handleTourStop}
+          isCinematic={isCinematic}
+          onCinematicToggle={handleCinematicToggle}
         />
 
         <main className="globe-container" aria-label="Earthquake globe visualization">
@@ -354,6 +435,36 @@ function App() {
               onFlyToComplete={handleFlyToComplete}
             />
           </ErrorBoundary>
+
+          {/* Cinematic Autoplay Badge */}
+          {isCinematic && selectedEarthquake && (
+            <div className="cinematic-badge" aria-live="polite">
+              <div className="cinematic-indicator">
+                <span className="cinematic-pulse"></span>
+                CINEMATIC
+              </div>
+              <div className="cinematic-info">
+                M{selectedEarthquake.magnitude.toFixed(1)} — {selectedEarthquake.place}
+              </div>
+              <div className="cinematic-progress-bar">
+                <div 
+                  className="cinematic-progress-fill"
+                  style={{ width: `${cinematicProgress * 100}%` }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Instructions Bar */}
+          {!isTourActive && !isCinematic && (
+            <div className="instructions-bar">
+              <span><kbd>G</kbd> Tour</span>
+              <span><kbd>C</kbd> Cinematic</span>
+              <span><kbd>W</kbd> Waves</span>
+              <span><kbd>Space</kbd> Timelapse</span>
+              <span><kbd>P</kbd> Panel</span>
+            </div>
+          )}
 
           {/* Cinematic Tour Overlay */}
           {isTourActive && tourStops[tourIndex] && (

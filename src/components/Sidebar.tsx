@@ -37,6 +37,8 @@ interface SidebarProps {
   isTourActive: boolean;
   onTourStart: () => void;
   onTourStop: () => void;
+  isCinematic: boolean;
+  onCinematicToggle: () => void;
 }
 
 const TIME_RANGES: TimeRange[] = [
@@ -65,7 +67,9 @@ export default function Sidebar({
   onToggleRings,
   isTourActive,
   onTourStart,
-  onTourStop
+  onTourStop,
+  isCinematic,
+  onCinematicToggle
 }: SidebarProps) {
   const [activeTab, setActiveTab] = useState<'controls' | 'stats' | 'info'>('controls');
 
@@ -315,6 +319,19 @@ export default function Sidebar({
                 </button>
                 <span className="control-hint">Fly through the biggest quakes</span>
               </div>
+
+              <div className="control-item">
+                <button
+                  className={`experience-btn cinematic-btn ${isCinematic ? 'active' : ''}`}
+                  onClick={onCinematicToggle}
+                  aria-pressed={isCinematic}
+                  aria-label={isCinematic ? 'Stop cinematic autoplay' : 'Start cinematic autoplay'}
+                >
+                  <Play size={16} />
+                  {isCinematic ? 'Stop Cinematic' : 'Cinematic Autoplay'}
+                </button>
+                <span className="control-hint">Auto-cycle through major earthquakes</span>
+              </div>
             </div>
           </div>
         )}
@@ -385,9 +402,10 @@ export default function Sidebar({
                 <li><kbd>Space</kbd> Toggle time-lapse</li>
                 <li><kbd>R</kbd> Reset time-lapse</li>
                 <li><kbd>G</kbd> Start/stop guided tour</li>
+                <li><kbd>C</kbd> Cinematic autoplay</li>
                 <li><kbd>W</kbd> Toggle seismic waves</li>
                 <li><kbd>P</kbd> Toggle sidebar</li>
-                <li><kbd>Esc</kbd> Close details / stop tour</li>
+                <li><kbd>Esc</kbd> Close / stop</li>
               </ul>
             </div>
 
