@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0a0e1a" />
+  <title>EarthPulse</title>
+  <script>
+    // SPA redirect for GitHub Pages
+    const path = window.location.pathname;
+    const repo = '/earthpulse';
+    if (path !== repo && path !== repo + '/') {
+      window.location.replace(repo + '/?redirect=' + encodeURIComponent(path));
+    }
+  </script>
+</head>
+<body>
+  <noscript>
+    <p>EarthPulse requires JavaScript to run. Please enable JavaScript in your browser.</p>
+  </noscript>
+</body>
+</html>

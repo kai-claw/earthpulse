@@ -2,17 +2,101 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="EarthPulse - Interactive 3D globe showing real-time seismic activity and tectonic plates. Visualize earthquakes worldwide with comprehensive data from USGS." />
-    <meta name="keywords" content="earthquake, seismic, tectonic plates, 3D globe, real-time, USGS, geology, earth science" />
-    <meta property="og:title" content="EarthPulse - Interactive Seismic Globe" />
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/earthpulse/favicon.svg" />
+
+    <!-- SEO -->
+    <title>EarthPulse — Real-Time Seismic Globe</title>
+    <meta name="description" content="Interactive 3D globe showing real-time earthquake activity and tectonic plates. Live USGS data with time-lapse, heatmaps, and depth analysis." />
+    <meta name="keywords" content="earthquake, seismic, tectonic plates, 3D globe, real-time, USGS, geology, earth science, visualization" />
+    <meta name="author" content="Kai" />
+    <meta name="theme-color" content="#0a0e1a" />
+    <link rel="canonical" href="https://kai-claw.github.io/earthpulse/" />
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="EarthPulse — Real-Time Seismic Globe" />
     <meta property="og:description" content="Explore real-time earthquake activity and tectonic plates on an interactive 3D Earth." />
     <meta property="og:type" content="website" />
-    <title>EarthPulse - Interactive Seismic Globe</title>
+    <meta property="og:url" content="https://kai-claw.github.io/earthpulse/" />
+    <meta property="og:site_name" content="EarthPulse" />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="EarthPulse — Real-Time Seismic Globe" />
+    <meta name="twitter:description" content="Interactive 3D globe showing real-time earthquake activity worldwide." />
+
+    <!-- PWA -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="EarthPulse" />
+
+    <!-- JSON-LD -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "EarthPulse",
+      "description": "Interactive 3D globe showing real-time earthquake activity and tectonic plates",
+      "url": "https://kai-claw.github.io/earthpulse/",
+      "applicationCategory": "EducationalApplication",
+      "operatingSystem": "Web",
+      "author": { "@type": "Person", "name": "Kai" },
+      "license": "https://opensource.org/licenses/MIT",
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+    }
+    </script>
+
+    <!-- Loading spinner (shows before React mounts) -->
+    <style>
+      body { margin: 0; background: #0a0e1a; overflow: hidden; }
+      .pre-loader {
+        position: fixed; inset: 0;
+        display: flex; flex-direction: column;
+        align-items: center; justify-content: center;
+        background: #0a0e1a; z-index: 9999;
+        transition: opacity 0.5s ease;
+      }
+      .pre-loader.fade-out { opacity: 0; pointer-events: none; }
+      .pre-loader .ring {
+        width: 60px; height: 60px;
+        border: 3px solid rgba(100,180,255,0.15);
+        border-top-color: #64b4ff;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+      .pre-loader p {
+        color: #8899bb; font-family: system-ui, sans-serif;
+        margin-top: 16px; font-size: 14px; letter-spacing: 0.5px;
+      }
+      @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
   </head>
   <body>
+    <div class="pre-loader" id="preloader">
+      <div class="ring"></div>
+      <p>Loading EarthPulse…</p>
+    </div>
     <div id="root"></div>
+    <noscript>
+      <div style="color:#8899bb;font-family:system-ui;text-align:center;padding:40px;">
+        <h2 style="color:#64b4ff;">EarthPulse</h2>
+        <p>This application requires JavaScript. Please enable JavaScript in your browser settings.</p>
+      </div>
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // Fade out preloader when React renders
+      const obs = new MutationObserver(() => {
+        const root = document.getElementById('root');
+        if (root && root.children.length > 0) {
+          const loader = document.getElementById('preloader');
+          if (loader) { loader.classList.add('fade-out'); setTimeout(() => loader.remove(), 600); }
+          obs.disconnect();
+        }
+      });
+      obs.observe(document.getElementById('root'), { childList: true });
+    </script>
   </body>
 </html>
