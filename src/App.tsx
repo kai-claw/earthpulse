@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import Globe from './components/Globe';
 import Sidebar from './components/Sidebar';
+import ErrorBoundary from './components/ErrorBoundary';
 import { 
   TectonicPlateCollection, 
   GlobePoint, 
@@ -160,6 +161,37 @@ function App() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Skip if user is typing in an input/select/textarea
+      const tag = (e.target as HTMLElement)?.tagName?.toLowerCase();
+      if (tag === 'input' || tag === 'select' || tag === 'textarea') return;
+
+      switch (e.key.toLowerCase()) {
+        case ' ':
+          e.preventDefault();
+          handleTimelapseToggle();
+          break;
+        case 'r':
+          handleTimelapseReset();
+          break;
+        case 'p':
+          setSidebarCollapsed(prev => !prev);
+          break;
+        case 'h':
+          // Could toggle help in future; for now toggle info tab
+          break;
+        case 'escape':
+          if (selectedEarthquake) setSelectedEarthquake(null);
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleTimelapseToggle, handleTimelapseReset, selectedEarthquake]);
+
   if (loading && earthquakes.length === 0) {
     return (
       <div className="app loading">
@@ -184,7 +216,7 @@ function App() {
   }
 
   return (
-    <div className="app">
+    <div className="app" role="application" aria-label="EarthPulse — Real-time earthquake visualization">
       <div className={`app-layout ${sidebarCollapsed ? 'sidebar-collapsed' : 'sidebar-expanded'}`}>
         <Sidebar
           isCollapsed={sidebarCollapsed}
@@ -202,26 +234,28 @@ function App() {
           onAnimationSpeedChange={setAnimationSpeed}
         />
 
-        <div className="globe-container">
-          <Globe
-            earthquakes={filteredEarthquakes}
-            tectonicPlates={tectonicPlates}
-            showTectonicPlates={filters.showTectonicPlates}
-            showHeatmap={filters.showHeatmap}
-            onEarthquakeClick={handleEarthquakeClick}
-            animationSpeed={animationSpeed}
-            timelapseProgress={isTimelapse ? timelapseProgress : -1}
-          />
-        </div>
+        <main className="globe-container" aria-label="Earthquake globe visualization">
+          <ErrorBoundary fallbackMessage="The 3D globe encountered an error">
+            <Globe
+              earthquakes={filteredEarthquakes}
+              tectonicPlates={tectonicPlates}
+              showTectonicPlates={filters.showTectonicPlates}
+              showHeatmap={filters.showHeatmap}
+              onEarthquakeClick={handleEarthquakeClick}
+              animationSpeed={animationSpeed}
+              timelapseProgress={isTimelapse ? timelapseProgress : -1}
+            />
+          </ErrorBoundary>
+        </main>
 
         {error && (
-          <div className="error-toast">
+          <div className="error-toast" role="alert" aria-live="assertive">
             <p>Failed to update data: {error}</p>
-            <button onClick={() => setError(null)}>×</button>
+            <button onClick={() => setError(null)} aria-label="Dismiss error">×</button>
           </div>
         )}
 
-        <div className="status-bar">
+        <div className="status-bar" role="status" aria-live="polite">
           <span>Last updated: {lastUpdate.toLocaleTimeString()}</span>
           <span>Showing {filteredEarthquakes.length} earthquakes</span>
         </div>

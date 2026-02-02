@@ -56,41 +56,47 @@ export default function Sidebar({
 }: SidebarProps) {
   const [activeTab, setActiveTab] = useState<'controls' | 'stats' | 'info'>('controls');
 
-  const handleFilterChange = (key: keyof FilterState, value: any) => {
+  const handleFilterChange = (key: keyof FilterState, value: FilterState[keyof FilterState]) => {
     onFiltersChange({ ...filters, [key]: value });
   };
 
   if (isCollapsed) {
     return (
-      <div className="sidebar collapsed">
+      <nav className="sidebar collapsed" role="complementary" aria-label="Controls panel (collapsed)">
         <button 
           className="toggle-btn"
           onClick={onToggle}
+          aria-label="Expand sidebar"
           title="Expand Sidebar"
         >
           <ChevronRight size={20} />
         </button>
-      </div>
+      </nav>
     );
   }
 
   return (
-    <div className="sidebar expanded">
+    <nav className="sidebar expanded" role="complementary" aria-label="Controls panel">
       <div className="sidebar-header">
         <h1>EarthPulse</h1>
         <button 
           className="toggle-btn"
           onClick={onToggle}
+          aria-label="Collapse sidebar"
           title="Collapse Sidebar"
         >
           <ChevronLeft size={20} />
         </button>
       </div>
 
-      <div className="sidebar-tabs">
+      <div className="sidebar-tabs" role="tablist" aria-label="Panel tabs">
         <button 
           className={`tab ${activeTab === 'controls' ? 'active' : ''}`}
           onClick={() => setActiveTab('controls')}
+          role="tab"
+          aria-selected={activeTab === 'controls'}
+          aria-controls="panel-controls"
+          id="tab-controls"
         >
           <Settings size={16} />
           <span>Controls</span>
@@ -98,6 +104,10 @@ export default function Sidebar({
         <button 
           className={`tab ${activeTab === 'stats' ? 'active' : ''}`}
           onClick={() => setActiveTab('stats')}
+          role="tab"
+          aria-selected={activeTab === 'stats'}
+          aria-controls="panel-stats"
+          id="tab-stats"
         >
           <BarChart3 size={16} />
           <span>Stats</span>
@@ -105,6 +115,10 @@ export default function Sidebar({
         <button 
           className={`tab ${activeTab === 'info' ? 'active' : ''}`}
           onClick={() => setActiveTab('info')}
+          role="tab"
+          aria-selected={activeTab === 'info'}
+          aria-controls="panel-info"
+          id="tab-info"
         >
           <Info size={16} />
           <span>Info</span>
@@ -116,7 +130,7 @@ export default function Sidebar({
           <div className="earthquake-details">
             <div className="details-header">
               <h3>Earthquake Details</h3>
-              <button className="close-btn" onClick={onCloseDetails}>×</button>
+              <button className="close-btn" onClick={onCloseDetails} aria-label="Close earthquake details">×</button>
             </div>
             <div className="details-content">
               <div className="detail-item">
@@ -148,7 +162,7 @@ export default function Sidebar({
         )}
 
         {activeTab === 'controls' && (
-          <div className="controls-panel">
+          <div className="controls-panel" role="tabpanel" id="panel-controls" aria-labelledby="tab-controls">
             <div className="control-group">
               <h4><Filter size={16} /> Filters</h4>
               
@@ -165,15 +179,20 @@ export default function Sidebar({
               </div>
 
               <div className="control-item">
-                <label>
+                <label htmlFor="min-magnitude">
                   Minimum Magnitude: {filters.minMagnitude.toFixed(1)}
                 </label>
                 <input
+                  id="min-magnitude"
                   type="range"
                   min="0"
                   max="9"
                   step="0.1"
                   value={filters.minMagnitude}
+                  aria-valuemin={0}
+                  aria-valuemax={9}
+                  aria-valuenow={filters.minMagnitude}
+                  aria-label={`Minimum magnitude: ${filters.minMagnitude.toFixed(1)}`}
                   onChange={(e) => handleFilterChange('minMagnitude', parseFloat(e.target.value))}
                 />
               </div>
@@ -207,15 +226,20 @@ export default function Sidebar({
               <h4><Activity size={16} /> Animation</h4>
               
               <div className="control-item">
-                <label>
+                <label htmlFor="globe-rotation">
                   Globe Rotation: {animationSpeed.toFixed(1)}x
                 </label>
                 <input
+                  id="globe-rotation"
                   type="range"
                   min="0"
                   max="5"
                   step="0.1"
                   value={animationSpeed}
+                  aria-valuemin={0}
+                  aria-valuemax={5}
+                  aria-valuenow={animationSpeed}
+                  aria-label={`Globe rotation speed: ${animationSpeed.toFixed(1)}x`}
                   onChange={(e) => onAnimationSpeedChange(parseFloat(e.target.value))}
                 />
               </div>
@@ -225,6 +249,8 @@ export default function Sidebar({
                   <button 
                     className={`timelapse-btn ${isTimelapse ? 'active' : ''}`}
                     onClick={onTimelapseToggle}
+                    aria-label={isTimelapse ? 'Pause time-lapse' : 'Start time-lapse'}
+                    aria-pressed={isTimelapse}
                   >
                     {isTimelapse ? <Pause size={16} /> : <Play size={16} />}
                     {isTimelapse ? 'Pause' : 'Time-lapse'}
@@ -232,6 +258,7 @@ export default function Sidebar({
                   <button 
                     className="reset-btn"
                     onClick={onTimelapseReset}
+                    aria-label="Reset time-lapse"
                     title="Reset Time-lapse"
                   >
                     <RotateCcw size={16} />
@@ -251,7 +278,7 @@ export default function Sidebar({
         )}
 
         {activeTab === 'stats' && (
-          <div className="stats-panel">
+          <div className="stats-panel" role="tabpanel" id="panel-stats" aria-labelledby="tab-stats">
             <h4><BarChart3 size={16} /> Statistics</h4>
             
             <div className="stat-item">
@@ -284,7 +311,7 @@ export default function Sidebar({
         )}
 
         {activeTab === 'info' && (
-          <div className="info-panel">
+          <div className="info-panel" role="tabpanel" id="panel-info" aria-labelledby="tab-info">
             <h4><Info size={16} /> About EarthPulse</h4>
             
             <div className="info-section">
@@ -322,6 +349,6 @@ export default function Sidebar({
           </div>
         )}
       </div>
-    </div>
+    </nav>
   );
 }
