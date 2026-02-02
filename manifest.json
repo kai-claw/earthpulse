@@ -1,0 +1,32 @@
+{
+  "name": "EarthPulse — Real-Time Seismic Globe",
+  "short_name": "EarthPulse",
+  "description": "Interactive 3D globe showing real-time earthquake activity, tectonic plates, and seismic data from USGS.",
+  "start_url": "/earthpulse/",
+  "scope": "/earthpulse/",
+  "display": "standalone",
+  "background_color": "#0a0e1a",
+  "theme_color": "#60a5fa",
+  "orientation": "any",
+  "categories": ["education", "weather", "utilities"],
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
