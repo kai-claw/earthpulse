@@ -74,8 +74,17 @@ export function useEarthquakeData(): EarthquakeDataState {
   const hasAutoFlown = useRef(false);
   const [initialBiggest, setInitialBiggest] = useState<GlobePoint | null>(null);
 
-  // Fetch data
+  // Concurrent fetch guard — prevents overlapping fetches from clobbering each other
+  const isFetchingRef = useRef(false);
+  const fetchSeqRef = useRef(0);
+
+  // Fetch data with concurrency protection
   const fetchData = useCallback(async () => {
+    // If already fetching, the AbortController in api.ts will cancel the old one,
+    // but we also track sequence number to discard stale results
+    const seq = ++fetchSeqRef.current;
+    isFetchingRef.current = true;
+
     try {
       setLoading(true);
       setError(null);
@@ -83,14 +92,23 @@ export function useEarthquakeData(): EarthquakeDataState {
         fetchEarthquakes(500, filters.minMagnitude, filters.timeRange.hours),
         tectonicPlates ? Promise.resolve(tectonicPlates) : fetchTectonicPlates(),
       ]);
+
+      // Discard result if a newer fetch was started while we were awaiting
+      if (seq !== fetchSeqRef.current) return;
+
       const globePoints = earthquakeData.features.map(convertEarthquakeToGlobePoint);
       setEarthquakes(globePoints);
       if (!tectonicPlates) setTectonicPlates(tectonicData);
       setLastUpdate(new Date());
     } catch (err) {
+      // Discard errors from superseded fetches
+      if (seq !== fetchSeqRef.current) return;
       setError(err instanceof Error ? err.message : 'Failed to fetch data');
     } finally {
-      setLoading(false);
+      if (seq === fetchSeqRef.current) {
+        isFetchingRef.current = false;
+        setLoading(false);
+      }
     }
   }, [filters.minMagnitude, filters.timeRange.hours, tectonicPlates]);
 

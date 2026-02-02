@@ -11,9 +11,11 @@ export function formatDate(timestamp: number): string {
 }
 
 export function formatRelativeTime(timestamp: number): string {
+  if (!Number.isFinite(timestamp) || timestamp < 0) return 'Unknown';
   const now = Date.now();
   const diffMinutes = Math.floor((now - timestamp) / (1000 * 60));
 
+  if (diffMinutes < 0) return 'Just now';
   if (diffMinutes < 60) return `${diffMinutes} minutes ago`;
 
   const diffHours = Math.floor(diffMinutes / 60);

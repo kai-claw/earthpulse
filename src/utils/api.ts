@@ -1,11 +1,55 @@
 import type { EarthquakeCollection, TectonicPlateCollection } from '../types';
 import { USGS_BASE_URL, TECTONIC_PLATES_URL, DEFAULT_FETCH_LIMIT } from './constants';
 
+/** Active AbortController for earthquake fetches — allows cancelling stale requests */
+let activeEqController: AbortController | null = null;
+
+/**
+ * Validate that the API response has the expected GeoJSON structure.
+ * Silently strips malformed features rather than rejecting the whole response.
+ */
+export function validateEarthquakeResponse(data: unknown): EarthquakeCollection {
+  if (!data || typeof data !== 'object') {
+    throw new Error('Invalid API response: not an object');
+  }
+  const obj = data as Record<string, unknown>;
+  if (obj.type !== 'FeatureCollection' || !Array.isArray(obj.features)) {
+    throw new Error('Invalid API response: missing FeatureCollection structure');
+  }
+
+  // Filter out malformed features instead of crashing
+  const validFeatures = (obj.features as unknown[]).filter((f) => {
+    if (!f || typeof f !== 'object') return false;
+    const feat = f as Record<string, unknown>;
+    if (!feat.properties || typeof feat.properties !== 'object') return false;
+    if (!feat.geometry || typeof feat.geometry !== 'object') return false;
+    const geom = feat.geometry as Record<string, unknown>;
+    if (!Array.isArray(geom.coordinates) || geom.coordinates.length < 3) return false;
+    // Ensure coordinates are finite numbers
+    const [lng, lat, depth] = geom.coordinates as number[];
+    if (!Number.isFinite(lng) || !Number.isFinite(lat) || !Number.isFinite(depth)) return false;
+    return true;
+  });
+
+  return {
+    ...obj,
+    type: 'FeatureCollection',
+    features: validFeatures,
+  } as EarthquakeCollection;
+}
+
 export async function fetchEarthquakes(
   limit = DEFAULT_FETCH_LIMIT,
   minMagnitude = 0,
   hoursBack = 24,
 ): Promise<EarthquakeCollection> {
+  // Abort any in-flight earthquake request (prevents stale data races)
+  if (activeEqController) {
+    activeEqController.abort();
+  }
+  activeEqController = new AbortController();
+  const { signal } = activeEqController;
+
   const endTime = new Date();
   const startTime = new Date(endTime.getTime() - (hoursBack * 60 * 60 * 1000));
 
@@ -19,14 +63,21 @@ export async function fetchEarthquakes(
   });
 
   try {
-    const response = await fetch(`${USGS_BASE_URL}?${params}`);
+    const response = await fetch(`${USGS_BASE_URL}?${params}`, { signal });
     if (!response.ok) {
       throw new Error(`USGS API error: ${response.status}`);
     }
-    return await response.json();
+    const raw = await response.json();
+    return validateEarthquakeResponse(raw);
   } catch (error) {
+    // Don't log or re-throw abort errors — they're intentional
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      return { type: 'FeatureCollection', features: [], metadata: {} } as unknown as EarthquakeCollection;
+    }
     console.error('Failed to fetch earthquake data:', error);
     throw error;
+  } finally {
+    activeEqController = null;
   }
 }
 

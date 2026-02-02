@@ -85,13 +85,27 @@ function App() {
     if (!tour.isTourActive) setFlyToTarget(null);
   }, [tour.isTourActive]);
 
-  // ─── Filter changes ───
+  // ─── Filter changes (debounced fetch for rapid slider/dropdown interactions) ───
+  const filterDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Cleanup debounce timer on unmount to prevent memory leak
+  useEffect(() => {
+    return () => {
+      if (filterDebounceRef.current) clearTimeout(filterDebounceRef.current);
+    };
+  }, []);
   const handleFiltersChange = useCallback((newFilters: typeof data.filters) => {
     const needsRefetch =
       newFilters.timeRange.hours !== data.filters.timeRange.hours ||
       newFilters.minMagnitude !== data.filters.minMagnitude;
     data.setFilters(newFilters);
-    if (needsRefetch) data.fetchData();
+    if (needsRefetch) {
+      // Debounce: wait 300ms before fetching so rapid slider drags don't hammer the API
+      if (filterDebounceRef.current) clearTimeout(filterDebounceRef.current);
+      filterDebounceRef.current = setTimeout(() => {
+        data.fetchData();
+        filterDebounceRef.current = null;
+      }, 300);
+    }
   }, [data.filters, data.setFilters, data.fetchData]);
 
   // ─── Timelapse ───

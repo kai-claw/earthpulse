@@ -87,8 +87,20 @@ function arcColorForMag(mag: number, alpha: number): string {
 // ─── Public API ───
 
 /**
+ * Approximate degree span for the max arc distance.
+ * 1° latitude ≈ 111 km, so ARC_MAX_DISTANCE_KM / 111 is a generous bounding box.
+ * This allows a fast O(1) pre-filter before the expensive haversine calculation.
+ */
+const ARC_DEG_BOUND = ARC_MAX_DISTANCE_KM / 111 * 1.2; // 20% margin for longitude distortion
+
+/**
  * Generate connection arcs between spatially/temporally close earthquakes.
  * Reveals cascading patterns along fault lines.
+ *
+ * Performance: O(n²) worst-case but mitigated by:
+ * - Time-sorted sliding window (breaks early on time gap)
+ * - Bounding-box pre-filter (skips haversine for distant pairs)
+ * - Arc cap (stops iteration once MAX_ARCS reached)
  */
 export function generateSeismicArcs(earthquakes: GlobePoint[]): SeismicArc[] {
   // Filter to eligible quakes and sort by time (oldest first)
@@ -110,6 +122,9 @@ export function generateSeismicArcs(earthquakes: GlobePoint[]): SeismicArc[] {
       // Time gap check (ms → hours)
       const timeGapH = (b.time - a.time) / (1000 * 60 * 60);
       if (timeGapH > ARC_MAX_TIME_GAP_H) break; // sorted by time, so all further are too far
+
+      // Fast bounding-box pre-filter — skip expensive haversine for obviously distant pairs
+      if (Math.abs(a.lat - b.lat) > ARC_DEG_BOUND || Math.abs(a.lng - b.lng) > ARC_DEG_BOUND) continue;
 
       // Distance check
       const dist = haversineKm(a.lat, a.lng, b.lat, b.lng);
@@ -152,12 +167,15 @@ export function generateSeismicArcs(earthquakes: GlobePoint[]): SeismicArc[] {
 export function generateHeatmapPoints(earthquakes: GlobePoint[]): HeatmapPoint[] {
   if (earthquakes.length === 0) return [];
 
-  // Compute raw energy weights
-  const raw = earthquakes.map(q => ({
-    lat: q.lat,
-    lng: q.lng,
-    rawWeight: Math.pow(10, 1.5 * q.magnitude),
-  }));
+  // Compute raw energy weights (sanitize NaN magnitudes)
+  const raw = earthquakes.map(q => {
+    const mag = Number.isFinite(q.magnitude) ? q.magnitude : 0;
+    return {
+      lat: q.lat,
+      lng: q.lng,
+      rawWeight: Math.pow(10, 1.5 * mag),
+    };
+  });
 
   // Log-normalize to [0, 1] range
   const logWeights = raw.map(r => Math.log10(r.rawWeight + 1));

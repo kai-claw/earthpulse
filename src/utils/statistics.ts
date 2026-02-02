@@ -26,11 +26,16 @@ export function calculateStatistics(earthquakes: GlobePoint[]): Statistics {
     };
   }
 
-  const largestQuake = earthquakes.reduce((max, quake) =>
-    quake.magnitude > max.magnitude ? quake : max,
-  );
+  const largestQuake = earthquakes.reduce((max, quake) => {
+    const mag = Number.isFinite(quake.magnitude) ? quake.magnitude : 0;
+    const maxMag = Number.isFinite(max.magnitude) ? max.magnitude : 0;
+    return mag > maxMag ? quake : max;
+  });
 
-  const totalDepth = earthquakes.reduce((sum, quake) => sum + quake.depth, 0);
+  const totalDepth = earthquakes.reduce((sum, quake) => {
+    const d = Number.isFinite(quake.depth) ? quake.depth : 0;
+    return sum + d;
+  }, 0);
   const averageDepth = totalDepth / earthquakes.length;
 
   // Group nearby earthquakes by extracted region name
@@ -48,9 +53,11 @@ export function calculateStatistics(earthquakes: GlobePoint[]): Statistics {
   const tsunamiWarnings = earthquakes.filter(q => q.tsunami).length;
   const significanceScore = earthquakes.reduce((sum, q) => sum + q.sig, 0);
 
+  const largestMag = Number.isFinite(largestQuake.magnitude) ? largestQuake.magnitude : 0;
+
   return {
     totalEvents: earthquakes.length,
-    largestMagnitude: largestQuake.magnitude,
+    largestMagnitude: largestMag,
     largestQuake: largestQuake.place,
     mostActiveRegion: mostActiveRegion || 'Global',
     averageDepth: Math.round(averageDepth * 10) / 10,

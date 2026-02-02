@@ -55,10 +55,14 @@ export function useCinematic(
 
     cinematicTimerRef.current = window.setTimeout(() => {
       if (cinematicProgressRef.current) clearInterval(cinematicProgressRef.current);
-      cinematicIndexRef.current = (cinematicIndexRef.current + 1) % stops.length;
-      const next = stops[cinematicIndexRef.current];
-      setCinematicFlyTarget(next);
-      setSelectedEarthquake(next);
+      // Bounds-check index against current stops (stops may shrink if filters change mid-cycle)
+      const nextIndex = (cinematicIndexRef.current + 1) % Math.max(1, stops.length);
+      cinematicIndexRef.current = nextIndex;
+      const next = stops[nextIndex];
+      if (next) {
+        setCinematicFlyTarget(next);
+        setSelectedEarthquake(next);
+      }
       setCinematicProgress(0);
       setCinematicStopKey(k => k + 1);
     }, CINEMATIC_INTERVAL_MS);

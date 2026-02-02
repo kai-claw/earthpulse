@@ -22,9 +22,11 @@ export interface EnergyComparison {
 
 /**
  * Calculate seismic energy from moment magnitude using Gutenberg-Richter.
+ * Returns a safe positive value even for NaN/Infinity inputs.
  */
 export function magnitudeToJoules(magnitude: number): number {
-  return Math.pow(10, 1.5 * magnitude + 4.8);
+  const m = Number.isFinite(magnitude) ? magnitude : 0;
+  return Math.pow(10, 1.5 * m + 4.8);
 }
 
 /**

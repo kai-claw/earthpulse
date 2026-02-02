@@ -44,13 +44,15 @@ export function calculateMood(earthquakes: GlobePoint[]): MoodState {
   const totalFelt = earthquakes.reduce((s, q) => s + (q.felt || 0), 0);
 
   for (const q of earthquakes) {
-    const ageHours = (now - q.time) / (1000 * 60 * 60);
+    const mag = Number.isFinite(q.magnitude) ? q.magnitude : 0;
+    const time = Number.isFinite(q.time) ? q.time : now;
+    const ageHours = (now - time) / (1000 * 60 * 60);
     const recencyWeight = Math.max(0.1, 1 - ageHours / 168); // Fade over a week
-    const magEnergy = Math.pow(10, q.magnitude * 0.5);
+    const magEnergy = Math.pow(10, mag * 0.5);
     weightedScore += magEnergy * recencyWeight;
 
-    if (q.magnitude > recentBiggest && ageHours < 48) {
-      recentBiggest = q.magnitude;
+    if (mag > recentBiggest && ageHours < 48) {
+      recentBiggest = mag;
     }
   }
 
