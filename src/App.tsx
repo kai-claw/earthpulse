@@ -4,12 +4,16 @@ import ErrorBoundary from './components/ErrorBoundary';
 import MoodIndicator from './components/MoodIndicator';
 import type { GlobePoint } from './types';
 import { INITIAL_FLY_DELAY_MS } from './utils/constants';
+import { ARC_MAX_DISTANCE_KM, ARC_MAX_TIME_GAP_H } from './utils/clusters';
 import {
   useEarthquakeData,
   useTour,
   useCinematic,
   useAudio,
   useKeyboardShortcuts,
+  useUrlState,
+  useAutoRefresh,
+  useSearch,
 } from './hooks';
 import './App.css';
 
@@ -26,12 +30,23 @@ function App() {
   const [timelapseProgress, setTimelapseProgress] = useState(0);
   const [animationSpeed, setAnimationSpeed] = useState(0.5);
   const [showSeismicRings, setShowSeismicRings] = useState(true);
+  const [showSeismicNetwork, setShowSeismicNetwork] = useState(false);
+  const [showEnergyHeatmap, setShowEnergyHeatmap] = useState(false);
   const [flyToTarget, setFlyToTarget] = useState<GlobePoint | null>(null);
 
   // ─── Feature Hooks ───
   const tour = useTour(data.filteredEarthquakes, data.setSelectedEarthquake);
   const cinematic = useCinematic(data.filteredEarthquakes, data.setSelectedEarthquake);
   const audio = useAudio();
+  const search = useSearch(data.filteredEarthquakes);
+  const autoRefresh = useAutoRefresh(data.fetchData);
+  const urlState = useUrlState({
+    earthquakes: data.filteredEarthquakes,
+    onSelectEarthquake: (eq) => {
+      data.setSelectedEarthquake(eq);
+      setFlyToTarget(eq);
+    },
+  });
 
   // ─── First-load auto-fly ───
   const hasHandledInitial = useRef(false);
@@ -53,7 +68,18 @@ function App() {
     data.setSelectedEarthquake(earthquake);
     setFlyToTarget(earthquake);
     audio.playQuakeAudioFeedback(earthquake);
-  }, [data.setSelectedEarthquake, audio.playQuakeAudioFeedback]);
+    urlState.setSharedEarthquake(earthquake);
+  }, [data.setSelectedEarthquake, audio.playQuakeAudioFeedback, urlState.setSharedEarthquake]);
+
+  // ─── Historical fly-to (creates a synthetic point for the globe) ───
+  const handleHistoricalFlyTo = useCallback((lat: number, lng: number, magnitude: number) => {
+    const syntheticPoint: GlobePoint = {
+      lat, lng, magnitude, depth: 0, place: 'Historical Location',
+      time: 0, id: 'historical-fly', color: '#ef4444', size: 1,
+      tsunami: false, sig: 0, url: '',
+    };
+    setFlyToTarget(syntheticPoint);
+  }, []);
 
   const handleFlyToComplete = useCallback(() => {
     if (!tour.isTourActive) setFlyToTarget(null);
@@ -90,6 +116,22 @@ function App() {
   // ─── Seismic rings ───
   const handleToggleRings = useCallback(() => setShowSeismicRings(p => !p), []);
 
+  // ─── Seismic network ───
+  const handleToggleNetwork = useCallback(() => setShowSeismicNetwork(p => !p), []);
+
+  // ─── Energy heatmap ───
+  const handleToggleEnergyHeatmap = useCallback(() => setShowEnergyHeatmap(p => !p), []);
+
+  // ─── Search result click handler ───
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const eq = (e as CustomEvent<GlobePoint>).detail;
+      if (eq) handleEarthquakeClick(eq);
+    };
+    window.addEventListener('earthquake-select', handler);
+    return () => window.removeEventListener('earthquake-select', handler);
+  }, [handleEarthquakeClick]);
+
   // ─── Responsive sidebar ───
   useEffect(() => {
     const handleResize = () => {
@@ -107,6 +149,8 @@ function App() {
     onSidebarToggle: () => setSidebarCollapsed(p => !p),
     onTourToggle: () => tour.isTourActive ? tour.handleTourStop() : tour.handleTourStart(),
     onRingsToggle: handleToggleRings,
+    onNetworkToggle: handleToggleNetwork,
+    onEnergyHeatmapToggle: handleToggleEnergyHeatmap,
     onCinematicToggle: cinematic.handleCinematicToggle,
     onAudioToggle: audio.handleToggleAudio,
     onEscape: () => {
@@ -116,6 +160,7 @@ function App() {
     },
   }), [
     handleTimelapseToggle, handleTimelapseReset, handleToggleRings,
+    handleToggleNetwork, handleToggleEnergyHeatmap,
     tour.isTourActive, tour.handleTourStart, tour.handleTourStop,
     cinematic.isCinematic, cinematic.handleCinematicToggle,
     audio.handleToggleAudio,
@@ -167,6 +212,7 @@ function App() {
           filters={data.filters}
           onFiltersChange={handleFiltersChange}
           statistics={data.statistics}
+          earthquakes={data.filteredEarthquakes}
           selectedEarthquake={data.selectedEarthquake}
           selectedFreshness={data.selectedFreshness}
           selectedImpact={data.selectedImpact}
@@ -188,6 +234,17 @@ function App() {
           onCinematicToggle={cinematic.handleCinematicToggle}
           audioEnabled={audio.audioEnabled}
           onToggleAudio={audio.handleToggleAudio}
+          showSeismicNetwork={showSeismicNetwork}
+          onToggleNetwork={handleToggleNetwork}
+          showEnergyHeatmap={showEnergyHeatmap}
+          onToggleEnergyHeatmap={handleToggleEnergyHeatmap}
+          onHistoricalFlyTo={handleHistoricalFlyTo}
+          searchQuery={search.query}
+          onSearchChange={search.setQuery}
+          onSearchClear={search.clearSearch}
+          searchResults={search.results}
+          searchResultCount={search.resultCount}
+          getShareUrl={urlState.getShareUrl}
         />
 
         <main className="globe-container" aria-label="Earthquake globe visualization">
@@ -208,6 +265,8 @@ function App() {
                 showTectonicPlates={data.filters.showTectonicPlates}
                 showHeatmap={data.filters.showHeatmap}
                 showSeismicRings={showSeismicRings}
+                showSeismicNetwork={showSeismicNetwork}
+                showEnergyHeatmap={showEnergyHeatmap}
                 onEarthquakeClick={handleEarthquakeClick}
                 animationSpeed={animationSpeed}
                 timelapseProgress={isTimelapse ? timelapseProgress : -1}
@@ -238,6 +297,32 @@ function App() {
             />
           )}
 
+          {/* Seismic Network Badge */}
+          {showSeismicNetwork && !tour.isTourActive && !cinematic.isCinematic && (
+            <div className="network-badge" aria-live="polite">
+              <div className="network-indicator">
+                <span className="network-pulse"></span>
+                SEISMIC NETWORK
+              </div>
+              <div className="network-info">
+                Connecting quakes within {ARC_MAX_DISTANCE_KM}km &amp; {ARC_MAX_TIME_GAP_H}h
+              </div>
+            </div>
+          )}
+
+          {/* Energy Heatmap Badge */}
+          {showEnergyHeatmap && !tour.isTourActive && !cinematic.isCinematic && (
+            <div className="energy-heatmap-badge" aria-live="polite">
+              <div className="energy-heatmap-indicator">
+                <span className="energy-heatmap-pulse"></span>
+                3D ENERGY MAP
+              </div>
+              <div className="energy-heatmap-info">
+                Seismic energy density ∝ 10^(1.5×M)
+              </div>
+            </div>
+          )}
+
           {/* Cinematic Autoplay Badge */}
           {cinematic.isCinematic && data.selectedEarthquake && (
             <div className="cinematic-badge" aria-live="polite">
@@ -262,9 +347,10 @@ function App() {
             <div className="instructions-bar">
               <span><kbd>G</kbd> Tour</span>
               <span><kbd>C</kbd> Cinematic</span>
+              <span><kbd>N</kbd> Network</span>
+              <span><kbd>X</kbd> Heatmap</span>
               <span><kbd>W</kbd> Waves</span>
               <span><kbd>A</kbd> Audio</span>
-              <span><kbd>Space</kbd> Timelapse</span>
               <span><kbd>P</kbd> Panel</span>
             </div>
           )}
@@ -320,9 +406,27 @@ function App() {
         )}
 
         <div className="status-bar" role="status" aria-live="polite">
-          <span>Last updated: {data.lastUpdate.toLocaleTimeString()}</span>
-          <span>Showing {data.filteredEarthquakes.length} earthquakes</span>
-          {showSeismicRings && <span className="status-rings">🌊 Seismic Waves</span>}
+          <span>Last updated: {autoRefresh.lastRefreshTime.toLocaleTimeString()}</span>
+          <span className="status-dot-sep">·</span>
+          <span>Showing {search.query ? `${search.resultCount} of ` : ''}{data.filteredEarthquakes.length} earthquakes</span>
+          <span className="status-dot-sep">·</span>
+          <span className={`status-refresh ${autoRefresh.isRefreshing ? 'refreshing' : ''}`}>
+            {autoRefresh.isRefreshing ? (
+              '↻ Refreshing…'
+            ) : (
+              <button
+                className="refresh-countdown-btn"
+                onClick={autoRefresh.manualRefresh}
+                aria-label={`Refresh now (auto-refresh in ${autoRefresh.secondsUntilRefresh}s)`}
+                title="Click to refresh now"
+              >
+                ↻ {Math.floor(autoRefresh.secondsUntilRefresh / 60)}:{String(autoRefresh.secondsUntilRefresh % 60).padStart(2, '0')}
+              </button>
+            )}
+          </span>
+          {showSeismicRings && <span className="status-rings">🌊 Waves</span>}
+          {showSeismicNetwork && <span className="status-network">🔗 Network</span>}
+          {showEnergyHeatmap && <span className="status-energy">🔥 Energy</span>}
         </div>
       </div>
     </div>

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import type { GlobePoint, TectonicPlateCollection, FilterState, Statistics, MoodState } from '../types';
 import { fetchEarthquakes, fetchTectonicPlates } from '../utils/api';
-import { AUTO_REFRESH_MS, DEFAULT_TIME_RANGE, INITIAL_FLY_MIN_MAG } from '../utils/constants';
+import { DEFAULT_TIME_RANGE, INITIAL_FLY_MIN_MAG } from '../utils/constants';
 import { convertEarthquakeToGlobePoint } from '../utils/geo';
 import { calculateStatistics, filterEarthquakesByTimeRange } from '../utils/statistics';
 import { calculateMood, getLoadingPoem } from '../utils/mood';
@@ -128,11 +128,8 @@ export function useEarthquakeData(): EarthquakeDataState {
     }
   }, []);
 
-  // Auto-refresh
-  useEffect(() => {
-    const interval = setInterval(fetchData, AUTO_REFRESH_MS);
-    return () => clearInterval(interval);
-  }, [fetchData]);
+  // Auto-refresh is now managed by useAutoRefresh hook in App.tsx
+  // (provides countdown timer + manual refresh button)
 
   // Derived emotional data for selected earthquake
   const selectedFreshness = useMemo(

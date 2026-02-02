@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import GlobeGL from 'react-globe.gl';
 import type { GlobePoint, TectonicPlateCollection } from '../types';
 import { getMagnitudeColor } from '../utils/colors';
 import { generateSeismicRings } from '../utils/seismic';
+import { generateSeismicArcs, generateHeatmapPoints, HEATMAP_BANDWIDTH, HEATMAP_TOP_ALT, HEATMAP_BASE_ALT } from '../utils/clusters';
+import type { SeismicArc, HeatmapPoint } from '../utils/clusters';
 
 interface GlobeComponentProps {
   earthquakes: GlobePoint[];
@@ -10,6 +12,8 @@ interface GlobeComponentProps {
   showTectonicPlates: boolean;
   showHeatmap: boolean;
   showSeismicRings: boolean;
+  showSeismicNetwork: boolean;
+  showEnergyHeatmap: boolean;
   onEarthquakeClick: (earthquake: GlobePoint) => void;
   animationSpeed: number;
   timelapseProgress: number;
@@ -23,6 +27,8 @@ export default function GlobeComponent({
   showTectonicPlates,
   showHeatmap,
   showSeismicRings,
+  showSeismicNetwork,
+  showEnergyHeatmap,
   onEarthquakeClick,
   animationSpeed,
   timelapseProgress,
@@ -38,6 +44,18 @@ export default function GlobeComponent({
 
   // Generate seismic ring data
   const ringsData = showSeismicRings ? generateSeismicRings(visibleEarthquakes) : [];
+
+  // Generate seismic network arcs (memoized — expensive)
+  const arcsData: SeismicArc[] = useMemo(
+    () => showSeismicNetwork ? generateSeismicArcs(visibleEarthquakes) : [],
+    [showSeismicNetwork, visibleEarthquakes],
+  );
+
+  // Generate 3D energy heatmap points (memoized)
+  const heatmapPoints: HeatmapPoint[] = useMemo(
+    () => showEnergyHeatmap ? generateHeatmapPoints(visibleEarthquakes) : [],
+    [showEnergyHeatmap, visibleEarthquakes],
+  );
 
   // Responsive resize via ResizeObserver
   useEffect(() => {
@@ -163,6 +181,50 @@ export default function GlobeComponent({
           ringRepeatPeriod={(d: object) => (d as { repeatPeriod: number }).repeatPeriod}
           ringAltitude={0.002}
           ringResolution={48}
+
+          // Seismic network arcs
+          arcsData={arcsData}
+          arcStartLat={(d: object) => (d as SeismicArc).startLat}
+          arcStartLng={(d: object) => (d as SeismicArc).startLng}
+          arcEndLat={(d: object) => (d as SeismicArc).endLat}
+          arcEndLng={(d: object) => (d as SeismicArc).endLng}
+          arcColor={(d: object) => (d as SeismicArc).color}
+          arcStroke={(d: object) => (d as SeismicArc).stroke}
+          arcDashLength={(d: object) => (d as SeismicArc).dashLength}
+          arcDashGap={(d: object) => (d as SeismicArc).dashGap}
+          arcDashAnimateTime={(d: object) => (d as SeismicArc).dashAnimateTime}
+          arcAltitude={(d: object) => (d as SeismicArc).altitude}
+          arcLabel={(d: object) => {
+            const arc = d as SeismicArc;
+            return `<div style="background: rgba(10,14,26,0.92); color: white; padding: 8px 12px; border-radius: 8px; font-size: 11px; border: 1px solid rgba(168,85,247,0.3); backdrop-filter: blur(8px);">
+              <div style="font-weight: 600; color: #a78bfa;">🔗 Seismic Connection</div>
+              <div style="margin-top: 4px; color: rgba(255,255,255,0.8);">${arc.label}</div>
+            </div>`;
+          }}
+
+          // 3D Energy heatmap
+          heatmapsData={heatmapPoints.length > 0 ? [heatmapPoints] : []}
+          heatmapPoints="."
+          heatmapPointLat={(d: object) => (d as HeatmapPoint).lat}
+          heatmapPointLng={(d: object) => (d as HeatmapPoint).lng}
+          heatmapPointWeight={(d: object) => (d as HeatmapPoint).weight}
+          heatmapBandwidth={HEATMAP_BANDWIDTH}
+          heatmapTopAltitude={HEATMAP_TOP_ALT}
+          heatmapBaseAltitude={HEATMAP_BASE_ALT}
+          heatmapColorSaturation={2.5}
+          heatmapColorFn={(t: number) => {
+            // Cool blue → warm amber → hot red
+            if (t < 0.33) {
+              const f = t / 0.33;
+              return `rgba(${Math.round(30 + f * 70)}, ${Math.round(100 + f * 60)}, ${Math.round(200 - f * 50)}, ${0.4 + f * 0.2})`;
+            } else if (t < 0.66) {
+              const f = (t - 0.33) / 0.33;
+              return `rgba(${Math.round(100 + f * 155)}, ${Math.round(160 - f * 60)}, ${Math.round(150 - f * 120)}, ${0.6 + f * 0.15})`;
+            } else {
+              const f = (t - 0.66) / 0.34;
+              return `rgba(${Math.round(255)}, ${Math.round(100 - f * 60)}, ${Math.round(30)}, ${0.75 + f * 0.2})`;
+            }
+          }}
 
           // Paths (tectonic plates)
           pathsData={showTectonicPlates && tectonicPlates ? tectonicPlates.features : []}

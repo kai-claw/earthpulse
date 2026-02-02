@@ -9,3 +9,6 @@ export * from './statistics';
 export * from './mood';
 export * from './seismic';
 export * from './audio';
+export * from './energy';
+export * from './historical';
+export * from './clusters';

@@ -6,6 +6,8 @@ interface ShortcutActions {
   onSidebarToggle: () => void;
   onTourToggle: () => void;
   onRingsToggle: () => void;
+  onNetworkToggle: () => void;
+  onEnergyHeatmapToggle: () => void;
   onCinematicToggle: () => void;
   onAudioToggle: () => void;
   onEscape: () => void;
@@ -37,6 +39,12 @@ export function useKeyboardShortcuts(actions: ShortcutActions): void {
           break;
         case 'w':
           actions.onRingsToggle();
+          break;
+        case 'n':
+          actions.onNetworkToggle();
+          break;
+        case 'x':
+          actions.onEnergyHeatmapToggle();
           break;
         case 'c':
           actions.onCinematicToggle();

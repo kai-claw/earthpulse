@@ -15,11 +15,20 @@ import {
   Navigation,
   Waves,
   Volume2,
-  VolumeX
+  VolumeX,
+  BookOpen,
+  GitBranch,
+  Flame
 } from 'lucide-react';
 import type { FilterState, Statistics, GlobePoint } from '../types';
 import { TIME_RANGES } from '../utils/constants';
 import { formatDate, formatRelativeTime, getMagnitudeDescription, getDepthDescription } from '../utils/formatting';
+import { getEnergyComparison } from '../utils/energy';
+import MagnitudeChart from './MagnitudeChart';
+import DepthProfile from './DepthProfile';
+import HistoricalGallery from './HistoricalGallery';
+import SearchBar from './SearchBar';
+import ShareButton from './ShareButton';
 
 interface SidebarProps {
   isCollapsed: boolean;
@@ -27,6 +36,7 @@ interface SidebarProps {
   filters: FilterState;
   onFiltersChange: (filters: FilterState) => void;
   statistics: Statistics;
+  earthquakes: GlobePoint[];
   selectedEarthquake: GlobePoint | null;
   selectedFreshness: { label: string; urgency: 'live' | 'recent' | 'fresh' } | null;
   selectedImpact: string;
@@ -48,6 +58,17 @@ interface SidebarProps {
   onCinematicToggle: () => void;
   audioEnabled: boolean;
   onToggleAudio: () => void;
+  showSeismicNetwork: boolean;
+  onToggleNetwork: () => void;
+  showEnergyHeatmap: boolean;
+  onToggleEnergyHeatmap: () => void;
+  onHistoricalFlyTo: (lat: number, lng: number, magnitude: number) => void;
+  searchQuery: string;
+  onSearchChange: (q: string) => void;
+  onSearchClear: () => void;
+  searchResults: GlobePoint[];
+  searchResultCount: number;
+  getShareUrl: (eq: GlobePoint) => string;
 }
 
 export default function Sidebar({
@@ -56,6 +77,7 @@ export default function Sidebar({
   filters,
   onFiltersChange,
   statistics,
+  earthquakes,
   selectedEarthquake,
   selectedFreshness,
   selectedImpact,
@@ -76,9 +98,20 @@ export default function Sidebar({
   isCinematic,
   onCinematicToggle,
   audioEnabled,
-  onToggleAudio
+  onToggleAudio,
+  showSeismicNetwork,
+  onToggleNetwork,
+  showEnergyHeatmap,
+  onToggleEnergyHeatmap,
+  onHistoricalFlyTo,
+  searchQuery,
+  onSearchChange,
+  onSearchClear,
+  searchResults,
+  searchResultCount,
+  getShareUrl,
 }: SidebarProps) {
-  const [activeTab, setActiveTab] = useState<'controls' | 'stats' | 'info'>('controls');
+  const [activeTab, setActiveTab] = useState<'controls' | 'stats' | 'history' | 'info'>('controls');
 
   const handleFilterChange = (key: keyof FilterState, value: FilterState[keyof FilterState]) => {
     onFiltersChange({ ...filters, [key]: value });
@@ -137,6 +170,17 @@ export default function Sidebar({
           <span>Stats</span>
         </button>
         <button 
+          className={`tab ${activeTab === 'history' ? 'active' : ''}`}
+          onClick={() => setActiveTab('history')}
+          role="tab"
+          aria-selected={activeTab === 'history'}
+          aria-controls="panel-history"
+          id="tab-history"
+        >
+          <BookOpen size={16} />
+          <span>History</span>
+        </button>
+        <button 
           className={`tab ${activeTab === 'info' ? 'active' : ''}`}
           onClick={() => setActiveTab('info')}
           role="tab"
@@ -150,6 +194,26 @@ export default function Sidebar({
       </div>
 
       <div className="sidebar-content">
+        {/* Search Bar */}
+        <SearchBar
+          query={searchQuery}
+          onQueryChange={onSearchChange}
+          onClear={onSearchClear}
+          resultCount={searchResultCount}
+          totalCount={earthquakes.length}
+          results={searchResults}
+          onSelectResult={(eq) => {
+            onFiltersChange(filters); // ensure filters applied
+            // Simulate click by selecting + closing details first
+            onCloseDetails();
+            setTimeout(() => {
+              // parent handles the actual selection + fly-to
+              const event = new CustomEvent('earthquake-select', { detail: eq });
+              window.dispatchEvent(event);
+            }, 50);
+          }}
+        />
+
         {selectedEarthquake && (
           <div className={`earthquake-details ${selectedEarthquake.magnitude >= 5 ? 'details-intense' : ''} ${selectedEarthquake.tsunami ? 'details-tsunami' : ''}`}>
             <div className="details-header">
@@ -238,15 +302,37 @@ export default function Sidebar({
                 </div>
               )}
 
-              {selectedEarthquake.url && (
-                <a 
-                  href={selectedEarthquake.url} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="usgs-link"
-                >
-                  View on USGS →
-                </a>
+              <div className="detail-actions">
+                {selectedEarthquake.url && (
+                  <a 
+                    href={selectedEarthquake.url} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="usgs-link"
+                  >
+                    View on USGS →
+                  </a>
+                )}
+                <ShareButton
+                  earthquake={selectedEarthquake}
+                  getShareUrl={getShareUrl}
+                />
+              </div>
+
+              {/* Energy comparison */}
+              {selectedEarthquake.magnitude >= 2 && (
+                <div className="energy-section">
+                  <div className="energy-section-header">⚡ Energy Released</div>
+                  {getEnergyComparison(selectedEarthquake.magnitude).comparisons.slice(0, 3).map((c, i) => (
+                    <div key={i} className="energy-comparison-row">
+                      <span className="energy-icon">{c.icon}</span>
+                      <div className="energy-text-group">
+                        <span className="energy-main">{c.label}</span>
+                        <span className="energy-sub">{c.detail}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
           </div>
@@ -383,6 +469,32 @@ export default function Sidebar({
 
               <div className="control-item">
                 <button
+                  className={`experience-btn network-btn ${showSeismicNetwork ? 'active' : ''}`}
+                  onClick={onToggleNetwork}
+                  aria-pressed={showSeismicNetwork}
+                  aria-label={showSeismicNetwork ? 'Hide seismic network' : 'Show seismic network'}
+                >
+                  <GitBranch size={16} />
+                  {showSeismicNetwork ? 'Network On' : 'Seismic Network'}
+                </button>
+                <span className="control-hint">Connect related earthquakes with arcs</span>
+              </div>
+
+              <div className="control-item">
+                <button
+                  className={`experience-btn heatmap3d-btn ${showEnergyHeatmap ? 'active' : ''}`}
+                  onClick={onToggleEnergyHeatmap}
+                  aria-pressed={showEnergyHeatmap}
+                  aria-label={showEnergyHeatmap ? 'Hide energy heatmap' : 'Show energy heatmap'}
+                >
+                  <Flame size={16} />
+                  {showEnergyHeatmap ? 'Energy Map On' : '3D Energy Map'}
+                </button>
+                <span className="control-hint">See seismic energy density rising from the surface</span>
+              </div>
+
+              <div className="control-item">
+                <button
                   className={`experience-btn tour-btn ${isTourActive ? 'active' : ''}`}
                   onClick={isTourActive ? onTourStop : onTourStart}
                   aria-pressed={isTourActive}
@@ -467,6 +579,24 @@ export default function Sidebar({
                 <span className="stat-value">{statistics.tsunamiWarnings}</span>
               </div>
             )}
+
+            {/* Magnitude distribution chart */}
+            <div className="stat-chart-divider" />
+            <MagnitudeChart earthquakes={earthquakes} />
+
+            {/* Depth vs magnitude scatter plot */}
+            <div className="stat-chart-divider" />
+            <DepthProfile earthquakes={earthquakes} />
+          </div>
+        )}
+
+        {activeTab === 'history' && (
+          <div className="history-panel" role="tabpanel" id="panel-history" aria-labelledby="tab-history">
+            <h4><BookOpen size={16} /> Historical Earthquakes</h4>
+            <p className="history-intro">
+              Explore the most significant earthquakes in recorded history. Click to learn more, fly to their location on the globe.
+            </p>
+            <HistoricalGallery onFlyTo={onHistoricalFlyTo} />
           </div>
         )}
 
@@ -504,6 +634,8 @@ export default function Sidebar({
                 <li><kbd>R</kbd> Reset time-lapse</li>
                 <li><kbd>G</kbd> Start/stop guided tour</li>
                 <li><kbd>C</kbd> Cinematic autoplay</li>
+                <li><kbd>N</kbd> Toggle seismic network</li>
+                <li><kbd>X</kbd> Toggle 3D energy heatmap</li>
                 <li><kbd>W</kbd> Toggle seismic waves</li>
                 <li><kbd>A</kbd> Toggle seismic audio</li>
                 <li><kbd>P</kbd> Toggle sidebar</li>
