@@ -1,13 +1,15 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import Globe from './components/Globe';
 import Sidebar from './components/Sidebar';
 import ErrorBoundary from './components/ErrorBoundary';
+import MoodIndicator from './components/MoodIndicator';
 import { 
   TectonicPlateCollection, 
   GlobePoint, 
   FilterState, 
   Statistics,
-  TimeRange 
+  TimeRange,
+  MoodState
 } from './types';
 import { 
   fetchEarthquakes, 
@@ -17,7 +19,15 @@ import {
   convertEarthquakeToGlobePoint, 
   calculateStatistics,
   filterEarthquakesByTimeRange,
-  getTourStops
+  getTourStops,
+  calculateMood,
+  getFreshnessLabel,
+  getHumanImpact,
+  getEmotionalContext,
+  getLoadingPoem,
+  formatDistanceToUser,
+  playRichQuakeTone,
+  triggerHaptic
 } from './utils/helpers';
 import './App.css';
 
@@ -36,7 +46,10 @@ function App() {
     largestMagnitude: 0,
     largestQuake: 'None',
     mostActiveRegion: 'None',
-    averageDepth: 0
+    averageDepth: 0,
+    totalFelt: 0,
+    tsunamiWarnings: 0,
+    significanceScore: 0
   });
 
   // UI State
@@ -74,6 +87,22 @@ function App() {
 
   // First-load auto-fly flag
   const hasAutoFlown = useRef(false);
+
+  // Mood system
+  const [mood, setMood] = useState<MoodState>({
+    mood: 'serene', intensity: 0, description: '', color: '#60a5fa', recentBiggest: 0
+  });
+
+  // Audio toggle
+  const [audioEnabled, setAudioEnabled] = useState(false);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+
+  // User geolocation for "distance to you" feature
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const hasRequestedGeo = useRef(false);
+
+  // Loading poem
+  const [loadingPoem] = useState(() => getLoadingPoem());
 
   // Filters
   const [filters, setFilters] = useState<FilterState>({
@@ -116,6 +145,7 @@ function App() {
     
     setFilteredEarthquakes(filtered);
     setStatistics(calculateStatistics(filtered));
+    setMood(calculateMood(filtered));
 
     // Auto-fly to biggest quake on first data load for instant wow
     if (!hasAutoFlown.current && filtered.length > 0) {
@@ -134,6 +164,19 @@ function App() {
   // Initial data fetch
   useEffect(() => {
     fetchData();
+  }, []);
+
+  // Request user geolocation (non-blocking, enhances "distance to you")
+  useEffect(() => {
+    if (hasRequestedGeo.current) return;
+    hasRequestedGeo.current = true;
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+        () => { /* Permission denied or unavailable — no problem */ },
+        { timeout: 5000, maximumAge: 300000 }
+      );
+    }
   }, []);
 
   // Auto-refresh data every 5 minutes
@@ -203,11 +246,30 @@ function App() {
     };
   }, [isTourActive, tourIndex, tourStops, advanceTour]);
 
-  // Handle earthquake click — fly to it
+  // Audio feedback: play a rich multi-layered tone when clicking quakes
+  const playQuakeTone = useCallback((magnitude: number) => {
+    if (!audioEnabled) return;
+    try {
+      if (!audioCtxRef.current) {
+        audioCtxRef.current = new AudioContext();
+      }
+      playRichQuakeTone(audioCtxRef.current, magnitude);
+    } catch {
+      // Audio not available — fail silently
+    }
+  }, [audioEnabled]);
+
+  const handleToggleAudio = useCallback(() => {
+    setAudioEnabled(prev => !prev);
+  }, []);
+
+  // Handle earthquake click — fly to it + haptic + audio
   const handleEarthquakeClick = useCallback((earthquake: GlobePoint) => {
     setSelectedEarthquake(earthquake);
     setFlyToTarget(earthquake);
-  }, []);
+    playQuakeTone(earthquake.magnitude);
+    triggerHaptic(earthquake.magnitude);
+  }, [playQuakeTone]);
 
   const handleFlyToComplete = useCallback(() => {
     // Don't clear during tour — tour manages its own flow
@@ -355,6 +417,9 @@ function App() {
         case 'c': // "C" for cinematic autoplay
           handleCinematicToggle();
           break;
+        case 'a': // "A" for audio toggle
+          handleToggleAudio();
+          break;
         case 'escape':
           if (isCinematic) {
             handleCinematicToggle();
@@ -369,14 +434,39 @@ function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleTimelapseToggle, handleTimelapseReset, selectedEarthquake, isTourActive, isCinematic, handleTourStart, handleTourStop, handleToggleRings, handleCinematicToggle]);
+  }, [handleTimelapseToggle, handleTimelapseReset, selectedEarthquake, isTourActive, isCinematic, handleTourStart, handleTourStop, handleToggleRings, handleCinematicToggle, handleToggleAudio]);
+
+  // Derive emotional data for the selected earthquake
+  const selectedFreshness = useMemo(() => 
+    selectedEarthquake ? getFreshnessLabel(selectedEarthquake.time) : null,
+    [selectedEarthquake]
+  );
+  const selectedImpact = useMemo(() => 
+    selectedEarthquake ? getHumanImpact(selectedEarthquake) : '',
+    [selectedEarthquake]
+  );
+  const selectedEmotion = useMemo(() => 
+    selectedEarthquake ? getEmotionalContext(selectedEarthquake) : null,
+    [selectedEarthquake]
+  );
+  const selectedDistance = useMemo(() => 
+    selectedEarthquake && userLocation
+      ? formatDistanceToUser(selectedEarthquake.lat, selectedEarthquake.lng, userLocation.lat, userLocation.lng)
+      : null,
+    [selectedEarthquake, userLocation]
+  );
 
   if (loading && earthquakes.length === 0) {
     return (
       <div className="app loading">
         <div className="loading-spinner">
-          <div className="spinner"></div>
-          <p>Loading Earth's seismic activity...</p>
+          <div className="loading-earth-pulse">
+            <div className="earth-ring earth-ring-1" />
+            <div className="earth-ring earth-ring-2" />
+            <div className="earth-ring earth-ring-3" />
+            <div className="earth-core" />
+          </div>
+          <p className="loading-poem">{loadingPoem}</p>
         </div>
       </div>
     );
@@ -395,7 +485,12 @@ function App() {
   }
 
   return (
-    <div className="app" role="application" aria-label="EarthPulse — Real-time earthquake visualization">
+    <div 
+      className={`app app-enter ${selectedEarthquake && selectedEarthquake.magnitude >= 6 ? 'screen-tremor-heavy' : selectedEarthquake && selectedEarthquake.magnitude >= 5 ? 'screen-tremor' : ''} mood-bg-${mood.mood}`} 
+      role="application" 
+      aria-label="EarthPulse — Real-time earthquake visualization"
+      style={{ '--mood-intensity': mood.intensity } as React.CSSProperties}
+    >
       <div className={`app-layout ${sidebarCollapsed ? 'sidebar-collapsed' : 'sidebar-expanded'}`}>
         <Sidebar
           isCollapsed={sidebarCollapsed}
@@ -404,6 +499,10 @@ function App() {
           onFiltersChange={handleFiltersChange}
           statistics={statistics}
           selectedEarthquake={selectedEarthquake}
+          selectedFreshness={selectedFreshness}
+          selectedImpact={selectedImpact}
+          selectedEmotion={selectedEmotion}
+          selectedDistance={selectedDistance}
           onCloseDetails={() => setSelectedEarthquake(null)}
           isTimelapse={isTimelapse}
           onTimelapseToggle={handleTimelapseToggle}
@@ -418,6 +517,8 @@ function App() {
           onTourStop={handleTourStop}
           isCinematic={isCinematic}
           onCinematicToggle={handleCinematicToggle}
+          audioEnabled={audioEnabled}
+          onToggleAudio={handleToggleAudio}
         />
 
         <main className="globe-container" aria-label="Earthquake globe visualization">
@@ -435,6 +536,27 @@ function App() {
               onFlyToComplete={handleFlyToComplete}
             />
           </ErrorBoundary>
+
+          {/* Cinematic vignette overlay */}
+          <div className="globe-vignette" aria-hidden="true" />
+
+          {/* Ambient mood glow overlay */}
+          <div 
+            className={`mood-ambient mood-ambient-${mood.mood}`}
+            style={{ 
+              '--mood-color': mood.color,
+              '--mood-intensity': mood.intensity
+            } as React.CSSProperties}
+          />
+
+          {/* Mood indicator (top-left of globe) */}
+          {!isTourActive && !isCinematic && (
+            <MoodIndicator 
+              mood={mood}
+              totalFelt={statistics.totalFelt}
+              tsunamiWarnings={statistics.tsunamiWarnings}
+            />
+          )}
 
           {/* Cinematic Autoplay Badge */}
           {isCinematic && selectedEarthquake && (
@@ -461,6 +583,7 @@ function App() {
               <span><kbd>G</kbd> Tour</span>
               <span><kbd>C</kbd> Cinematic</span>
               <span><kbd>W</kbd> Waves</span>
+              <span><kbd>A</kbd> Audio</span>
               <span><kbd>Space</kbd> Timelapse</span>
               <span><kbd>P</kbd> Panel</span>
             </div>

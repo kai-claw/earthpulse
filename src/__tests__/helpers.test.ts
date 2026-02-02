@@ -59,6 +59,9 @@ function makeGlobePoint(overrides: Partial<GlobePoint> = {}): GlobePoint {
     id: overrides.id ?? 'test1',
     color: overrides.color ?? '#ff4444',
     size: overrides.size ?? 1.35,
+    tsunami: overrides.tsunami ?? false,
+    sig: overrides.sig ?? 100,
+    url: overrides.url ?? '',
   };
 }
 

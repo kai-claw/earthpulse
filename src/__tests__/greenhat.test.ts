@@ -13,6 +13,9 @@ function makeQuake(overrides: Partial<GlobePoint> = {}): GlobePoint {
     id: 'test-' + Math.random().toString(36).slice(2),
     color: '#ff4444',
     size: 1.35,
+    tsunami: false,
+    sig: 100,
+    url: '',
     ...overrides
   };
 }

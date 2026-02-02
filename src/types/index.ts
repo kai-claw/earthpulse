@@ -74,6 +74,24 @@ export interface GlobePoint {
   id: string;
   color: string;
   size: number;
+  // Emotional / human-impact fields from USGS
+  felt?: number;        // Number of people who reported feeling it
+  cdi?: number;         // Community Decimal Intensity (1-12 scale)
+  tsunami: boolean;     // Tsunami warning issued
+  alert?: string;       // PAGER alert level (green/yellow/orange/red)
+  sig: number;          // USGS significance score (0-1000+)
+  url: string;          // USGS event page
+}
+
+/** Emotional mood of seismic activity */
+export type SeismicMood = 'serene' | 'quiet' | 'stirring' | 'restless' | 'volatile' | 'fierce';
+
+export interface MoodState {
+  mood: SeismicMood;
+  intensity: number;      // 0-1 normalized
+  description: string;    // Poetic human-readable
+  color: string;          // Mood accent color
+  recentBiggest: number;  // Largest recent magnitude
 }
 
 export interface TimeRange {
@@ -94,6 +112,9 @@ export interface Statistics {
   largestQuake: string;
   mostActiveRegion: string;
   averageDepth: number;
+  totalFelt: number;          // Total felt reports across all quakes
+  tsunamiWarnings: number;    // Count of tsunami-flagged events
+  significanceScore: number;  // Cumulative significance
 }
 
 export interface SeismicRing {

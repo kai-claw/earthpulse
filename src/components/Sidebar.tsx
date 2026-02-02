@@ -13,7 +13,9 @@ import {
   Filter,
   Radio,
   Navigation,
-  Waves
+  Waves,
+  Volume2,
+  VolumeX
 } from 'lucide-react';
 import { FilterState, Statistics, TimeRange, GlobePoint } from '../types';
 import { formatDate, formatRelativeTime, getMagnitudeDescription, getDepthDescription } from '../utils/helpers';
@@ -25,6 +27,10 @@ interface SidebarProps {
   onFiltersChange: (filters: FilterState) => void;
   statistics: Statistics;
   selectedEarthquake: GlobePoint | null;
+  selectedFreshness: { label: string; urgency: 'live' | 'recent' | 'fresh' } | null;
+  selectedImpact: string;
+  selectedEmotion: string | null;
+  selectedDistance: string | null;
   onCloseDetails: () => void;
   isTimelapse: boolean;
   onTimelapseToggle: () => void;
@@ -39,6 +45,8 @@ interface SidebarProps {
   onTourStop: () => void;
   isCinematic: boolean;
   onCinematicToggle: () => void;
+  audioEnabled: boolean;
+  onToggleAudio: () => void;
 }
 
 const TIME_RANGES: TimeRange[] = [
@@ -56,6 +64,10 @@ export default function Sidebar({
   onFiltersChange,
   statistics,
   selectedEarthquake,
+  selectedFreshness,
+  selectedImpact,
+  selectedEmotion,
+  selectedDistance,
   onCloseDetails,
   isTimelapse,
   onTimelapseToggle,
@@ -69,7 +81,9 @@ export default function Sidebar({
   onTourStart,
   onTourStop,
   isCinematic,
-  onCinematicToggle
+  onCinematicToggle,
+  audioEnabled,
+  onToggleAudio
 }: SidebarProps) {
   const [activeTab, setActiveTab] = useState<'controls' | 'stats' | 'info'>('controls');
 
@@ -144,16 +158,32 @@ export default function Sidebar({
 
       <div className="sidebar-content">
         {selectedEarthquake && (
-          <div className="earthquake-details">
+          <div className={`earthquake-details ${selectedEarthquake.magnitude >= 5 ? 'details-intense' : ''} ${selectedEarthquake.tsunami ? 'details-tsunami' : ''}`}>
             <div className="details-header">
-              <h3>Earthquake Details</h3>
+              <h3>
+                Earthquake Details
+                {selectedFreshness && (
+                  <span className={`freshness-badge freshness-${selectedFreshness.urgency}`}>
+                    {selectedFreshness.label}
+                  </span>
+                )}
+              </h3>
               <button className="close-btn" onClick={onCloseDetails} aria-label="Close earthquake details">×</button>
             </div>
+
+            {/* Emotional context — gut reaction */}
+            {selectedEmotion && (
+              <div className="emotional-context">
+                <p>{selectedEmotion}</p>
+              </div>
+            )}
+
             <div className="details-content">
               <div className="detail-item">
                 <span className="label">Magnitude:</span>
-                <span className="value magnitude">
-                  M{selectedEarthquake.magnitude.toFixed(1)} ({getMagnitudeDescription(selectedEarthquake.magnitude)})
+                <span className={`value magnitude mag-${selectedEarthquake.magnitude >= 6 ? 'major' : selectedEarthquake.magnitude >= 4 ? 'moderate' : 'minor'}`}>
+                  <span className="mag-hero">M{selectedEarthquake.magnitude.toFixed(1)}</span>
+                  <span className="mag-hero-label">{getMagnitudeDescription(selectedEarthquake.magnitude)}</span>
                 </span>
               </div>
               <div className="detail-item">
@@ -174,6 +204,57 @@ export default function Sidebar({
                 <span className="label">Occurred:</span>
                 <span className="value">{formatRelativeTime(selectedEarthquake.time)}</span>
               </div>
+
+              {/* Human impact section */}
+              {selectedImpact && (
+                <div className="detail-item human-impact">
+                  <span className="label">Impact:</span>
+                  <span className="value impact-value">{selectedImpact}</span>
+                </div>
+              )}
+
+              {selectedEarthquake.felt && selectedEarthquake.felt > 0 && (
+                <div className="detail-item">
+                  <span className="label">Felt Reports:</span>
+                  <span className="value felt-value">
+                    {selectedEarthquake.felt.toLocaleString()} {selectedEarthquake.felt === 1 ? 'report' : 'reports'}
+                  </span>
+                </div>
+              )}
+
+              {selectedEarthquake.alert && (
+                <div className={`detail-item alert-item alert-${selectedEarthquake.alert}`}>
+                  <span className="label">PAGER Alert:</span>
+                  <span className={`value alert-badge alert-badge-${selectedEarthquake.alert}`}>
+                    {selectedEarthquake.alert.toUpperCase()}
+                  </span>
+                </div>
+              )}
+
+              {selectedEarthquake.tsunami && (
+                <div className="detail-item tsunami-warning">
+                  <span className="tsunami-icon">🌊</span>
+                  <span className="tsunami-text">Tsunami warning issued</span>
+                </div>
+              )}
+
+              {selectedDistance && (
+                <div className="detail-item distance-item">
+                  <span className="label">📍 Distance:</span>
+                  <span className="value distance-value">{selectedDistance}</span>
+                </div>
+              )}
+
+              {selectedEarthquake.url && (
+                <a 
+                  href={selectedEarthquake.url} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="usgs-link"
+                >
+                  View on USGS →
+                </a>
+              )}
             </div>
           </div>
         )}
@@ -332,6 +413,19 @@ export default function Sidebar({
                 </button>
                 <span className="control-hint">Auto-cycle through major earthquakes</span>
               </div>
+
+              <div className="control-item">
+                <button
+                  className={`experience-btn audio-btn ${audioEnabled ? 'active' : ''}`}
+                  onClick={onToggleAudio}
+                  aria-pressed={audioEnabled}
+                  aria-label={audioEnabled ? 'Disable seismic audio' : 'Enable seismic audio'}
+                >
+                  {audioEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
+                  {audioEnabled ? 'Audio On' : 'Seismic Audio'}
+                </button>
+                <span className="control-hint">Hear earthquakes as deep tones</span>
+              </div>
             </div>
           </div>
         )}
@@ -366,6 +460,20 @@ export default function Sidebar({
               <span className="stat-label">Average Depth</span>
               <span className="stat-value">{statistics.averageDepth.toFixed(1)} km</span>
             </div>
+
+            {statistics.totalFelt > 0 && (
+              <div className="stat-item felt-stat">
+                <span className="stat-label">👤 People Felt It</span>
+                <span className="stat-value">{statistics.totalFelt.toLocaleString()}</span>
+              </div>
+            )}
+
+            {statistics.tsunamiWarnings > 0 && (
+              <div className="stat-item tsunami-stat">
+                <span className="stat-label">🌊 Tsunami Alerts</span>
+                <span className="stat-value">{statistics.tsunamiWarnings}</span>
+              </div>
+            )}
           </div>
         )}
 
@@ -404,6 +512,7 @@ export default function Sidebar({
                 <li><kbd>G</kbd> Start/stop guided tour</li>
                 <li><kbd>C</kbd> Cinematic autoplay</li>
                 <li><kbd>W</kbd> Toggle seismic waves</li>
+                <li><kbd>A</kbd> Toggle seismic audio</li>
                 <li><kbd>P</kbd> Toggle sidebar</li>
                 <li><kbd>Esc</kbd> Close / stop</li>
               </ul>

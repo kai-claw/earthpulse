@@ -108,6 +108,9 @@ describe('Type Definitions', () => {
       largestQuake: 'None',
       mostActiveRegion: 'None',
       averageDepth: 0,
+      totalFelt: 0,
+      tsunamiWarnings: 0,
+      significanceScore: 0,
     };
     expect(stats).toHaveProperty('totalEvents');
     expect(stats).toHaveProperty('largestMagnitude');
