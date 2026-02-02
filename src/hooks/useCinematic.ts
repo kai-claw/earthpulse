@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import type { GlobePoint } from '../types';
 import { CINEMATIC_INTERVAL_MS, CINEMATIC_STOP_COUNT, PROGRESS_TICK_MS } from '../utils/constants';
 import { getTourStops } from '../utils/seismic';
@@ -22,14 +22,19 @@ export function useCinematic(
   const cinematicIndexRef = useRef(0);
   const [cinematicStopKey, setCinematicStopKey] = useState(0);
 
+  // Pre-compute cinematic stops once when earthquakes change (avoids re-sorting on every cycle)
+  const cinematicStops = useMemo(
+    () => getTourStops(filteredEarthquakes, CINEMATIC_STOP_COUNT),
+    [filteredEarthquakes],
+  );
+
   const handleCinematicToggle = useCallback(() => {
     setIsCinematic(prev => {
       if (!prev) {
-        const stops = getTourStops(filteredEarthquakes, CINEMATIC_STOP_COUNT);
-        if (stops.length === 0) return false;
+        if (cinematicStops.length === 0) return false;
         cinematicIndexRef.current = 0;
-        setCinematicFlyTarget(stops[0]);
-        setSelectedEarthquake(stops[0]);
+        setCinematicFlyTarget(cinematicStops[0]);
+        setSelectedEarthquake(cinematicStops[0]);
         setCinematicProgress(0);
         return true;
       } else {
@@ -40,13 +45,12 @@ export function useCinematic(
         return false;
       }
     });
-  }, [filteredEarthquakes, setSelectedEarthquake]);
+  }, [cinematicStops, setSelectedEarthquake]);
 
   // Cinematic autoplay timer
   useEffect(() => {
     if (!isCinematic) return;
-    const stops = getTourStops(filteredEarthquakes, CINEMATIC_STOP_COUNT);
-    if (stops.length === 0) { setIsCinematic(false); return; }
+    if (cinematicStops.length === 0) { setIsCinematic(false); return; }
 
     const startTime = Date.now();
     cinematicProgressRef.current = window.setInterval(() => {
@@ -56,9 +60,9 @@ export function useCinematic(
     cinematicTimerRef.current = window.setTimeout(() => {
       if (cinematicProgressRef.current) clearInterval(cinematicProgressRef.current);
       // Bounds-check index against current stops (stops may shrink if filters change mid-cycle)
-      const nextIndex = (cinematicIndexRef.current + 1) % Math.max(1, stops.length);
+      const nextIndex = (cinematicIndexRef.current + 1) % Math.max(1, cinematicStops.length);
       cinematicIndexRef.current = nextIndex;
-      const next = stops[nextIndex];
+      const next = cinematicStops[nextIndex];
       if (next) {
         setCinematicFlyTarget(next);
         setSelectedEarthquake(next);
@@ -71,7 +75,7 @@ export function useCinematic(
       if (cinematicTimerRef.current) clearTimeout(cinematicTimerRef.current);
       if (cinematicProgressRef.current) clearInterval(cinematicProgressRef.current);
     };
-  }, [isCinematic, filteredEarthquakes, cinematicStopKey, setSelectedEarthquake]);
+  }, [isCinematic, cinematicStops, cinematicStopKey, setSelectedEarthquake]);
 
   return { isCinematic, cinematicProgress, handleCinematicToggle, cinematicFlyTarget };
 }

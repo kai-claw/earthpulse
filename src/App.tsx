@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo, lazy, Suspense } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo, lazy, Suspense, type CSSProperties } from 'react';
 import Sidebar from './components/Sidebar';
 import ErrorBoundary from './components/ErrorBoundary';
 import MoodIndicator from './components/MoodIndicator';
@@ -14,6 +14,7 @@ import {
   useUrlState,
   useAutoRefresh,
   useSearch,
+  usePerformanceMonitor,
 } from './hooks';
 import './App.css';
 
@@ -47,6 +48,20 @@ function App() {
       setFlyToTarget(eq);
     },
   });
+
+  // ─── Performance Monitor ───
+  const perfActions = useMemo(() => ({
+    onDegrade: (features: string[]) => {
+      for (const f of features) {
+        if (f === 'seismicNetwork') setShowSeismicNetwork(false);
+        if (f === 'energyHeatmap') setShowEnergyHeatmap(false);
+      }
+    },
+    onRecover: () => {
+      // Don't auto-re-enable — user can toggle back manually
+    },
+  }), []);
+  const perf = usePerformanceMonitor(perfActions);
 
   // ─── First-load auto-fly ───
   const hasHandledInitial = useRef(false);
@@ -217,7 +232,7 @@ function App() {
       className={`app app-enter ${data.selectedEarthquake && data.selectedEarthquake.magnitude >= 6 ? 'screen-tremor-heavy' : data.selectedEarthquake && data.selectedEarthquake.magnitude >= 5 ? 'screen-tremor' : ''} mood-bg-${data.mood.mood}`}
       role="application"
       aria-label="EarthPulse — Real-time earthquake visualization"
-      style={{ '--mood-intensity': data.mood.intensity } as React.CSSProperties}
+      style={{ '--mood-intensity': data.mood.intensity } as CSSProperties}
     >
       <div className={`app-layout ${sidebarCollapsed ? 'sidebar-collapsed' : 'sidebar-expanded'}`}>
         <Sidebar
@@ -299,7 +314,7 @@ function App() {
             style={{
               '--mood-color': data.mood.color,
               '--mood-intensity': data.mood.intensity,
-            } as React.CSSProperties}
+            } as CSSProperties}
           />
 
           {/* Mood indicator (top-left of globe) */}
@@ -441,6 +456,11 @@ function App() {
           {showSeismicRings && <span className="status-rings">🌊 Waves</span>}
           {showSeismicNetwork && <span className="status-network">🔗 Network</span>}
           {showEnergyHeatmap && <span className="status-energy">🔥 Energy</span>}
+          {perf.isLowPerf && (
+            <span className="status-perf-warn" title="Low FPS detected — some features were auto-disabled">
+              ⚠️ {perf.fps} FPS
+            </span>
+          )}
         </div>
       </div>
     </div>

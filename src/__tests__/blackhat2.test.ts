@@ -1012,3 +1012,282 @@ describe('Stress: Arc Bounding Box Pre-filter', () => {
     expect(arcs).toHaveLength(0);
   });
 });
+
+
+// ═════════════════════════════════════════════════════════════
+// 11. HEATMAP MANUAL MIN/MAX — Stack Overflow Prevention
+// ═════════════════════════════════════════════════════════════
+
+describe('Stress: Heatmap Manual Min/Max (no Math.max spread)', () => {
+  it('generateHeatmapPoints handles 10,000 earthquakes without stack overflow', () => {
+    // Math.max(...array) would stack-overflow at ~65k+ on V8,
+    // but our manual loop should handle any size
+    const quakes = Array.from({ length: 10_000 }, (_, i) =>
+      makeGlobePoint({ magnitude: 1 + (i % 8), lat: -60 + (i * 0.01) % 120, lng: -180 + (i * 0.02) % 360, id: `big-${i}` })
+    );
+    const start = performance.now();
+    const points = generateHeatmapPoints(quakes);
+    const elapsed = performance.now() - start;
+
+    expect(points).toHaveLength(10_000);
+    expect(elapsed).toBeLessThan(500); // O(n) — should be fast
+    for (let i = 0; i < points.length; i += 500) {
+      expect(points[i].weight).toBeGreaterThanOrEqual(0.1 - 0.001);
+      expect(points[i].weight).toBeLessThanOrEqual(1.0 + 0.001);
+      expect(Number.isFinite(points[i].lat)).toBe(true);
+      expect(Number.isFinite(points[i].lng)).toBe(true);
+    }
+  });
+
+  it('generateHeatmapPoints manual min/max matches Math.min/max for small arrays', () => {
+    const quakes = [
+      makeGlobePoint({ magnitude: 2.0, lat: 0, lng: 0, id: 'verify-1' }),
+      makeGlobePoint({ magnitude: 5.0, lat: 10, lng: 10, id: 'verify-2' }),
+      makeGlobePoint({ magnitude: 8.0, lat: 20, lng: 20, id: 'verify-3' }),
+    ];
+    const points = generateHeatmapPoints(quakes);
+    // Highest mag → highest weight, lowest → lowest
+    expect(points[2].weight).toBeGreaterThan(points[1].weight);
+    expect(points[1].weight).toBeGreaterThan(points[0].weight);
+    // Extreme spread: M2 vs M8 — weight range should span most of [0.1, 1.0]
+    expect(points[2].weight).toBeCloseTo(1.0, 1);
+    expect(points[0].weight).toBeCloseTo(0.1, 1);
+  });
+});
+
+
+// ═════════════════════════════════════════════════════════════
+// 12. TIMELAPSE PERFORMANCE — Pre-sorted Array
+// ═════════════════════════════════════════════════════════════
+
+describe('Stress: Timelapse Sort Optimization', () => {
+  it('sorting 500 earthquakes is fast (baseline for why we pre-sort)', () => {
+    const quakes = Array.from({ length: 500 }, (_, i) =>
+      makeGlobePoint({ time: Date.now() - Math.random() * 7 * 86400000, id: `tl-${i}` })
+    );
+
+    // Simulating old behavior: sort on every tick
+    const iterations = 100; // 10fps × 10s = 100 ticks
+    const start = performance.now();
+    for (let i = 0; i < iterations; i++) {
+      const sorted = [...quakes].sort((a, b) => a.time - b.time);
+      // Just touch the array to prevent optimization
+      if (sorted[0].time > Infinity) throw new Error('unreachable');
+    }
+    const elapsed = performance.now() - start;
+
+    // The old way (sort 100 times) should still complete, but...
+    expect(elapsed).toBeGreaterThan(0);
+
+    // The new way: sort once
+    const start2 = performance.now();
+    const preSorted = [...quakes].sort((a, b) => a.time - b.time);
+    for (let i = 0; i < iterations; i++) {
+      const maxIndex = Math.floor((i / iterations) * preSorted.length);
+      const visible = preSorted.slice(0, maxIndex);
+      if (visible.length > Infinity) throw new Error('unreachable');
+    }
+    const elapsed2 = performance.now() - start2;
+
+    // Pre-sorted approach should be significantly faster
+    expect(elapsed2).toBeLessThan(elapsed);
+  });
+
+  it('pre-sorted slice produces same result as sort+slice', () => {
+    const quakes = Array.from({ length: 100 }, (_, i) =>
+      makeGlobePoint({ time: Date.now() - Math.random() * 86400000, id: `verify-tl-${i}` })
+    );
+
+    const sorted = [...quakes].sort((a, b) => a.time - b.time);
+    const progress = 0.5;
+    const maxIndex = Math.floor(progress * sorted.length);
+
+    // Old approach
+    const oldResult = [...quakes].sort((a, b) => a.time - b.time).slice(0, maxIndex);
+    // New approach (using pre-sorted)
+    const newResult = sorted.slice(0, maxIndex);
+
+    expect(newResult).toHaveLength(oldResult.length);
+    for (let i = 0; i < newResult.length; i++) {
+      expect(newResult[i].id).toBe(oldResult[i].id);
+    }
+  });
+});
+
+
+// ═════════════════════════════════════════════════════════════
+// 13. CINEMATIC STOPS MEMOIZATION
+// ═════════════════════════════════════════════════════════════
+
+describe('Stress: Cinematic Stops Stability', () => {
+  it('getTourStops is deterministic for same input', () => {
+    const quakes = Array.from({ length: 50 }, (_, i) =>
+      makeGlobePoint({ magnitude: 2.0 + i * 0.1, id: `cin-${i}` })
+    );
+    const stops1 = getTourStops(quakes, 12);
+    const stops2 = getTourStops(quakes, 12);
+
+    expect(stops1).toHaveLength(stops2.length);
+    for (let i = 0; i < stops1.length; i++) {
+      expect(stops1[i].id).toBe(stops2[i].id);
+      expect(stops1[i].magnitude).toBe(stops2[i].magnitude);
+    }
+  });
+
+  it('getTourStops does not mutate original array', () => {
+    const quakes = Array.from({ length: 20 }, (_, i) =>
+      makeGlobePoint({ magnitude: 1.0 + i, id: `mut-${i}` })
+    );
+    const originalIds = quakes.map(q => q.id);
+    getTourStops(quakes, 8);
+    const afterIds = quakes.map(q => q.id);
+    expect(afterIds).toEqual(originalIds);
+  });
+
+  it('getTourStops handles rapid successive calls efficiently', () => {
+    const quakes = Array.from({ length: 500 }, (_, i) =>
+      makeGlobePoint({ magnitude: Math.random() * 8, id: `rapid-${i}` })
+    );
+
+    const start = performance.now();
+    for (let i = 0; i < 100; i++) {
+      getTourStops(quakes, 12);
+    }
+    const elapsed = performance.now() - start;
+
+    // 100 calls × sort of 500 items should complete very fast
+    expect(elapsed).toBeLessThan(200);
+  });
+});
+
+
+// ═════════════════════════════════════════════════════════════
+// 14. VALIDATE EARTHQUAKE RESPONSE — LARGE BATCH STRESS
+// ═════════════════════════════════════════════════════════════
+
+describe('Stress: Validation Pipeline Under Load', () => {
+  it('validateEarthquakeResponse handles 1000 features with 50% invalid', () => {
+    const features: unknown[] = [];
+    for (let i = 0; i < 1000; i++) {
+      if (i % 2 === 0) {
+        features.push(makeFeature({ id: `valid-${i}`, mag: 3 + Math.random() * 4 }));
+      } else {
+        // Randomly pick an invalid shape
+        const badTypes = [
+          null,
+          42,
+          { properties: {} }, // no geometry
+          { geometry: { coordinates: [NaN, 0, 0] }, properties: { mag: 5 } }, // NaN coord
+          { geometry: { coordinates: [0, 0] }, properties: { mag: 5 } }, // only 2 coords
+        ];
+        features.push(badTypes[i % badTypes.length]);
+      }
+    }
+
+    const start = performance.now();
+    const result = validateEarthquakeResponse({ type: 'FeatureCollection', features });
+    const elapsed = performance.now() - start;
+
+    expect(result.features.length).toBe(500);
+    expect(elapsed).toBeLessThan(100);
+  });
+
+  it('validateEarthquakeResponse preserves feature order', () => {
+    const features = Array.from({ length: 100 }, (_, i) => makeFeature({ id: `order-${i}` }));
+    const result = validateEarthquakeResponse({ type: 'FeatureCollection', features });
+    for (let i = 0; i < result.features.length; i++) {
+      expect(result.features[i].id).toBe(`order-${i}`);
+    }
+  });
+});
+
+
+// ═════════════════════════════════════════════════════════════
+// 15. COMBINED FEATURE LOAD — ALL LAYERS SIMULTANEOUSLY
+// ═════════════════════════════════════════════════════════════
+
+describe('Stress: All Visualization Layers Simultaneously', () => {
+  it('all layers (rings + arcs + heatmap + stats + mood) from 500 quakes in < 500ms total', () => {
+    const quakes = generateCluster(500, 35, -118);
+    const start = performance.now();
+
+    // Simulate what the app does when all features are enabled
+    const rings = generateSeismicRings(quakes);
+    const arcs = generateSeismicArcs(quakes);
+    const heatmap = generateHeatmapPoints(quakes);
+    const stats = calculateStatistics(quakes);
+    const mood = calculateMood(quakes);
+    const filtered = filterEarthquakesByTimeRange(quakes, 168);
+    const stops = getTourStops(quakes, 12);
+
+    const elapsed = performance.now() - start;
+
+    expect(rings.length).toBeGreaterThan(0);
+    expect(arcs.length).toBeLessThanOrEqual(MAX_ARCS);
+    expect(heatmap).toHaveLength(500);
+    expect(stats.totalEvents).toBe(500);
+    expect(mood.mood).toBeDefined();
+    expect(filtered.length).toBeLessThanOrEqual(500);
+    expect(stops.length).toBeLessThanOrEqual(12);
+
+    // All combined must complete quickly
+    expect(elapsed).toBeLessThan(500);
+  });
+
+  it('all layers handle 0 earthquakes without crash', () => {
+    const quakes: GlobePoint[] = [];
+    expect(() => {
+      generateSeismicRings(quakes);
+      generateSeismicArcs(quakes);
+      generateHeatmapPoints(quakes);
+      calculateStatistics(quakes);
+      calculateMood(quakes);
+      filterEarthquakesByTimeRange(quakes, 24);
+      getTourStops(quakes, 12);
+    }).not.toThrow();
+  });
+
+  it('repeated computation of all layers is stable (no accumulation)', () => {
+    const quakes = generateCluster(100);
+
+    // Run 10 iterations, verify no state leaks or growing data
+    for (let i = 0; i < 10; i++) {
+      const rings = generateSeismicRings(quakes);
+      const arcs = generateSeismicArcs(quakes);
+      const heatmap = generateHeatmapPoints(quakes);
+      const stats = calculateStatistics(quakes);
+
+      expect(rings.length).toBeLessThanOrEqual(30);
+      expect(arcs.length).toBeLessThanOrEqual(MAX_ARCS);
+      expect(heatmap).toHaveLength(100);
+      expect(stats.totalEvents).toBe(100);
+    }
+  });
+});
+
+
+// ═════════════════════════════════════════════════════════════
+// 16. ENERGY CALCULATION PERFORMANCE
+// ═════════════════════════════════════════════════════════════
+
+describe('Stress: Energy Calculation Performance', () => {
+  it('getEnergyComparison handles 1000 rapid calls', () => {
+    const start = performance.now();
+    for (let m = 0; m < 1000; m++) {
+      const mag = (m % 100) / 10; // 0.0 to 9.9
+      const result = getEnergyComparison(mag);
+      expect(Number.isFinite(result.joules)).toBe(true);
+    }
+    const elapsed = performance.now() - start;
+    expect(elapsed).toBeLessThan(200);
+  });
+
+  it('magnitudeToJoules produces monotonically increasing values', () => {
+    let prev = 0;
+    for (let m = -3; m <= 10; m += 0.1) {
+      const joules = magnitudeToJoules(m);
+      expect(joules).toBeGreaterThan(prev);
+      prev = joules;
+    }
+  });
+});

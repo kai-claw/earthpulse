@@ -178,9 +178,15 @@ export function generateHeatmapPoints(earthquakes: GlobePoint[]): HeatmapPoint[]
   });
 
   // Log-normalize to [0, 1] range
+  // Use manual loop instead of Math.max(...spread) to avoid stack overflow on large arrays
   const logWeights = raw.map(r => Math.log10(r.rawWeight + 1));
-  const maxLog = Math.max(...logWeights);
-  const minLog = Math.min(...logWeights);
+  let maxLog = -Infinity;
+  let minLog = Infinity;
+  for (let i = 0; i < logWeights.length; i++) {
+    const v = logWeights[i];
+    if (v > maxLog) maxLog = v;
+    if (v < minLog) minLog = v;
+  }
   const range = maxLog - minLog || 1;
 
   return raw.map((r, i) => ({

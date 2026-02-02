@@ -13,3 +13,5 @@ export { useAutoRefresh } from './useAutoRefresh';
 export type { AutoRefreshState } from './useAutoRefresh';
 export { useSearch } from './useSearch';
 export type { SearchState } from './useSearch';
+export { usePerformanceMonitor } from './usePerformanceMonitor';
+export type { PerformanceState } from './usePerformanceMonitor';
