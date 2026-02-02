@@ -12,3 +12,4 @@ export * from './audio';
 export * from './energy';
 export * from './historical';
 export * from './clusters';
+export * from './export';

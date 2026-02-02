@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef, useMemo, lazy, Suspense, type
 import Sidebar from './components/Sidebar';
 import ErrorBoundary from './components/ErrorBoundary';
 import MoodIndicator from './components/MoodIndicator';
+import WelcomeOverlay from './components/WelcomeOverlay';
 import type { GlobePoint } from './types';
 import { INITIAL_FLY_DELAY_MS } from './utils/constants';
 import { ARC_MAX_DISTANCE_KM, ARC_MAX_TIME_GAP_H } from './utils/clusters';
@@ -374,13 +375,13 @@ function App() {
           {/* Instructions Bar */}
           {!tour.isTourActive && !cinematic.isCinematic && (
             <div className="instructions-bar">
+              <span><kbd>Space</kbd> Timelapse</span>
               <span><kbd>G</kbd> Tour</span>
               <span><kbd>C</kbd> Cinematic</span>
               <span><kbd>N</kbd> Network</span>
               <span><kbd>X</kbd> Heatmap</span>
               <span><kbd>W</kbd> Waves</span>
               <span><kbd>A</kbd> Audio</span>
-              <span><kbd>P</kbd> Panel</span>
             </div>
           )}
 
@@ -427,6 +428,9 @@ function App() {
           )}
         </main>
 
+        {/* Welcome overlay for first-time visitors */}
+        <WelcomeOverlay earthquakeCount={data.filteredEarthquakes.length} />
+
         {data.error && (
           <div className="error-toast" role="alert" aria-live="assertive">
             <p>Failed to update data: {data.error}</p>
@@ -435,6 +439,8 @@ function App() {
         )}
 
         <div className="status-bar" role="status" aria-live="polite">
+          <span className="status-version" title="EarthPulse v1.0.0">v1.0.0</span>
+          <span className="status-dot-sep">·</span>
           <span>Last updated: {autoRefresh.lastRefreshTime.toLocaleTimeString()}</span>
           <span className="status-dot-sep">·</span>
           <span>Showing {search.query ? `${search.resultCount} of ` : ''}{data.filteredEarthquakes.length} earthquakes</span>

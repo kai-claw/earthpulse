@@ -1316,6 +1316,23 @@ input[type="range"]:focus-visible {
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
+.status-version {
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', monospace;
+  font-size: 10px;
+  color: rgba(96, 165, 250, 0.7);
+  letter-spacing: 0.5px;
+  padding: 1px 6px;
+  background: rgba(96, 165, 250, 0.08);
+  border: 1px solid rgba(96, 165, 250, 0.15);
+  border-radius: 4px;
+  transition: color 0.3s ease, border-color 0.3s ease;
+}
+
+.status-version:hover {
+  color: #60a5fa;
+  border-color: rgba(96, 165, 250, 0.35);
+}
+
 .status-bar::before {
   content: '';
   width: 6px;
@@ -2808,6 +2825,370 @@ input[type="range"]:focus-visible {
   margin: 0 2px;
 }
 
+/* ─── Welcome Overlay ─── */
+
+.welcome-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  animation: welcomeFadeIn 0.5s ease;
+}
+
+.welcome-overlay.welcome-fade-out {
+  animation: welcomeFadeOut 0.4s ease forwards;
+}
+
+@keyframes welcomeFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes welcomeFadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+.welcome-card {
+  max-width: 520px;
+  width: 90vw;
+  max-height: 85vh;
+  overflow-y: auto;
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.97), rgba(10, 14, 26, 0.97));
+  border: 1px solid rgba(100, 180, 255, 0.15);
+  border-radius: 20px;
+  padding: 32px 28px 24px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 40px rgba(100, 180, 255, 0.08);
+  animation: welcomeCardEnter 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
+}
+
+@keyframes welcomeCardEnter {
+  from { opacity: 0; transform: translateY(30px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.welcome-header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.welcome-icon-pulse {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  margin-bottom: 16px;
+}
+
+.welcome-ring {
+  position: absolute;
+  inset: 0;
+  border: 2px solid rgba(100, 180, 255, 0.2);
+  border-radius: 50%;
+  animation: welcomeRingPulse 2.5s ease-in-out infinite;
+}
+
+.welcome-ring-2 {
+  animation-delay: 1.25s;
+}
+
+@keyframes welcomeRingPulse {
+  0%, 100% { transform: scale(1); opacity: 0.4; }
+  50% { transform: scale(1.5); opacity: 0; }
+}
+
+.welcome-earth-emoji {
+  font-size: 32px;
+  z-index: 1;
+}
+
+.welcome-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: #e2e8f0;
+  margin: 0 0 8px;
+  letter-spacing: -0.02em;
+}
+
+.welcome-subtitle {
+  font-size: 14px;
+  color: #94a3b8;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.welcome-features {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.welcome-feature {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  animation: welcomeFeatureIn 0.4s ease both;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.welcome-feature:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(100, 180, 255, 0.12);
+}
+
+@keyframes welcomeFeatureIn {
+  from { opacity: 0; transform: translateX(-10px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.welcome-feature-icon {
+  color: #64b4ff;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.welcome-feature-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.welcome-feature-text strong {
+  font-size: 13px;
+  font-weight: 600;
+  color: #e2e8f0;
+}
+
+.welcome-feature-text span {
+  font-size: 12px;
+  color: #94a3b8;
+  line-height: 1.5;
+}
+
+.welcome-start-btn {
+  display: block;
+  width: 100%;
+  padding: 13px 20px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #fff;
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+  letter-spacing: 0.01em;
+}
+
+.welcome-start-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
+}
+
+.welcome-start-btn:active {
+  transform: translateY(0);
+}
+
+.welcome-hint {
+  text-align: center;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.35);
+  margin: 14px 0 0;
+}
+
+.welcome-hint kbd {
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  font-family: inherit;
+  font-size: 10px;
+}
+
+/* ─── Activity Summary ─── */
+
+.activity-summary {
+  background: linear-gradient(135deg, rgba(100, 180, 255, 0.06), rgba(100, 180, 255, 0.02));
+  border: 1px solid rgba(100, 180, 255, 0.1);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+}
+
+.activity-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.activity-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.8);
+  margin: 0;
+  letter-spacing: 0.02em;
+}
+
+.export-csv-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #64b4ff;
+  background: rgba(100, 180, 255, 0.08);
+  border: 1px solid rgba(100, 180, 255, 0.15);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+}
+
+.export-csv-btn:hover {
+  background: rgba(100, 180, 255, 0.15);
+  border-color: rgba(100, 180, 255, 0.3);
+  transform: translateY(-1px);
+}
+
+.export-csv-btn:active {
+  transform: translateY(0);
+}
+
+.activity-rate-row {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
+.rate-primary {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+}
+
+.rate-number {
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.rate-unit {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+  font-weight: 500;
+}
+
+.rate-secondary {
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+  opacity: 0.6;
+}
+
+.rate-number-small {
+  font-size: 16px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+  font-variant-numeric: tabular-nums;
+}
+
+.rate-unit-small {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.activity-level-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.level-indicator {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+}
+
+.level-label {
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 11px;
+}
+
+.trend-indicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.trend-indicator.trend-rising {
+  color: #f59e0b;
+}
+
+.trend-indicator.trend-falling {
+  color: #22c55e;
+}
+
+.trend-text {
+  font-size: 10px;
+}
+
+.activity-notable {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.notable-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.notable-m6 {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+}
+
+.notable-m5 {
+  background: rgba(249, 115, 22, 0.12);
+  color: #f97316;
+  border: 1px solid rgba(249, 115, 22, 0.2);
+}
+
+.notable-m4 {
+  background: rgba(251, 191, 36, 0.1);
+  color: #fbbf24;
+  border: 1px solid rgba(251, 191, 36, 0.18);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .search-result-item:hover {
     transform: none;
@@ -2829,5 +3210,23 @@ input[type="range"]:focus-visible {
   .experience-btn.network-btn.active,
   .experience-btn.heatmap3d-btn.active {
     animation: none;
+  }
+  .welcome-overlay {
+    animation: none;
+  }
+  .welcome-card {
+    animation: none;
+  }
+  .welcome-ring {
+    animation: none;
+  }
+  .welcome-feature {
+    animation: none;
+  }
+  .welcome-start-btn:hover {
+    transform: none;
+  }
+  .export-csv-btn:hover {
+    transform: none;
   }
 }

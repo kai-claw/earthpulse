@@ -29,6 +29,7 @@ import DepthProfile from './DepthProfile';
 import HistoricalGallery from './HistoricalGallery';
 import SearchBar from './SearchBar';
 import ShareButton from './ShareButton';
+import ActivitySummary from './ActivitySummary';
 
 interface SidebarProps {
   isCollapsed: boolean;
@@ -537,6 +538,9 @@ export default function Sidebar({
 
         {activeTab === 'stats' && (
           <div className="stats-panel" role="tabpanel" id="panel-stats" aria-labelledby="tab-stats">
+            {/* Activity Rate Summary + CSV Export */}
+            <ActivitySummary earthquakes={earthquakes} />
+
             <h4><BarChart3 size={16} /> Statistics</h4>
             
             <div className="stat-item">
