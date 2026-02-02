@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Globe from './components/Globe';
 import Sidebar from './components/Sidebar';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -16,11 +16,13 @@ import {
 import { 
   convertEarthquakeToGlobePoint, 
   calculateStatistics,
-  filterEarthquakesByTimeRange
+  filterEarthquakesByTimeRange,
+  getTourStops
 } from './utils/helpers';
 import './App.css';
 
 const DEFAULT_TIME_RANGE: TimeRange = { label: 'Last Day', hours: 24 };
+const TOUR_DWELL_MS = 6000; // Time spent at each stop
 
 function App() {
   // State management
@@ -46,6 +48,20 @@ function App() {
   const [isTimelapse, setIsTimelapse] = useState(false);
   const [timelapseProgress, setTimelapseProgress] = useState(0);
   const [animationSpeed, setAnimationSpeed] = useState(0.5);
+
+  // Seismic Rings
+  const [showSeismicRings, setShowSeismicRings] = useState(true);
+
+  // Fly-to state
+  const [flyToTarget, setFlyToTarget] = useState<GlobePoint | null>(null);
+
+  // Cinematic Tour state
+  const [isTourActive, setIsTourActive] = useState(false);
+  const [tourStops, setTourStops] = useState<GlobePoint[]>([]);
+  const [tourIndex, setTourIndex] = useState(0);
+  const [tourProgress, setTourProgress] = useState(0);
+  const tourTimerRef = useRef<number | null>(null);
+  const tourProgressRef = useRef<number | null>(null);
 
   // Filters
   const [filters, setFilters] = useState<FilterState>({
@@ -107,28 +123,78 @@ function App() {
 
     const interval = setInterval(() => {
       setTimelapseProgress(prev => {
-        const next = prev + 0.01; // 1% progress per tick
+        const next = prev + 0.01;
         if (next >= 1) {
           setIsTimelapse(false);
           return 1;
         }
         return next;
       });
-    }, 100); // 100ms intervals
+    }, 100);
 
     return () => clearInterval(interval);
   }, [isTimelapse]);
 
-  // Handle earthquake click
+  // Cinematic Tour — advance to next stop
+  const advanceTour = useCallback(() => {
+    setTourIndex(prev => {
+      const next = prev + 1;
+      if (next >= tourStops.length) {
+        // Tour complete
+        setIsTourActive(false);
+        setTourProgress(0);
+        return 0;
+      }
+      setTourProgress(0);
+      setFlyToTarget(tourStops[next]);
+      return next;
+    });
+  }, [tourStops]);
+
+  // Cinematic Tour — manage dwell timer and progress bar
+  useEffect(() => {
+    if (!isTourActive || tourStops.length === 0) {
+      if (tourTimerRef.current) clearTimeout(tourTimerRef.current);
+      if (tourProgressRef.current) clearInterval(tourProgressRef.current);
+      return;
+    }
+
+    // Progress bar update at 30fps
+    const startTime = Date.now();
+    tourProgressRef.current = window.setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      setTourProgress(Math.min(1, elapsed / TOUR_DWELL_MS));
+    }, 33);
+
+    // Move to next stop after dwell
+    tourTimerRef.current = window.setTimeout(() => {
+      if (tourProgressRef.current) clearInterval(tourProgressRef.current);
+      advanceTour();
+    }, TOUR_DWELL_MS);
+
+    return () => {
+      if (tourTimerRef.current) clearTimeout(tourTimerRef.current);
+      if (tourProgressRef.current) clearInterval(tourProgressRef.current);
+    };
+  }, [isTourActive, tourIndex, tourStops, advanceTour]);
+
+  // Handle earthquake click — fly to it
   const handleEarthquakeClick = useCallback((earthquake: GlobePoint) => {
     setSelectedEarthquake(earthquake);
+    setFlyToTarget(earthquake);
   }, []);
+
+  const handleFlyToComplete = useCallback(() => {
+    // Don't clear during tour — tour manages its own flow
+    if (!isTourActive) {
+      setFlyToTarget(null);
+    }
+  }, [isTourActive]);
 
   // Handle filter changes
   const handleFiltersChange = useCallback((newFilters: FilterState) => {
     setFilters(newFilters);
     
-    // If time range or magnitude filter changed, refetch data
     if (
       newFilters.timeRange.hours !== filters.timeRange.hours ||
       newFilters.minMagnitude !== filters.minMagnitude
@@ -147,6 +213,30 @@ function App() {
     setTimelapseProgress(0);
   }, []);
 
+  // Cinematic Tour controls
+  const handleTourStart = useCallback(() => {
+    const stops = getTourStops(filteredEarthquakes, 8);
+    if (stops.length === 0) return;
+    
+    setTourStops(stops);
+    setTourIndex(0);
+    setTourProgress(0);
+    setIsTourActive(true);
+    setFlyToTarget(stops[0]);
+    setSelectedEarthquake(stops[0]);
+  }, [filteredEarthquakes]);
+
+  const handleTourStop = useCallback(() => {
+    setIsTourActive(false);
+    setTourProgress(0);
+    setFlyToTarget(null);
+  }, []);
+
+  // Toggle seismic rings
+  const handleToggleRings = useCallback(() => {
+    setShowSeismicRings(prev => !prev);
+  }, []);
+
   // Responsive design
   useEffect(() => {
     const handleResize = () => {
@@ -156,7 +246,7 @@ function App() {
     };
 
     window.addEventListener('resize', handleResize);
-    handleResize(); // Check initial size
+    handleResize();
     
     return () => window.removeEventListener('resize', handleResize);
   }, []);
@@ -164,7 +254,6 @@ function App() {
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Skip if user is typing in an input/select/textarea
       const tag = (e.target as HTMLElement)?.tagName?.toLowerCase();
       if (tag === 'input' || tag === 'select' || tag === 'textarea') return;
 
@@ -179,18 +268,29 @@ function App() {
         case 'p':
           setSidebarCollapsed(prev => !prev);
           break;
-        case 'h':
-          // Could toggle help in future; for now toggle info tab
+        case 'g': // "G" for guided tour
+          if (isTourActive) {
+            handleTourStop();
+          } else {
+            handleTourStart();
+          }
+          break;
+        case 'w': // "W" for waves/rings
+          handleToggleRings();
           break;
         case 'escape':
-          if (selectedEarthquake) setSelectedEarthquake(null);
+          if (isTourActive) {
+            handleTourStop();
+          } else if (selectedEarthquake) {
+            setSelectedEarthquake(null);
+          }
           break;
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleTimelapseToggle, handleTimelapseReset, selectedEarthquake]);
+  }, [handleTimelapseToggle, handleTimelapseReset, selectedEarthquake, isTourActive, handleTourStart, handleTourStop, handleToggleRings]);
 
   if (loading && earthquakes.length === 0) {
     return (
@@ -232,6 +332,11 @@ function App() {
           onTimelapseReset={handleTimelapseReset}
           animationSpeed={animationSpeed}
           onAnimationSpeedChange={setAnimationSpeed}
+          showSeismicRings={showSeismicRings}
+          onToggleRings={handleToggleRings}
+          isTourActive={isTourActive}
+          onTourStart={handleTourStart}
+          onTourStop={handleTourStop}
         />
 
         <main className="globe-container" aria-label="Earthquake globe visualization">
@@ -241,11 +346,56 @@ function App() {
               tectonicPlates={tectonicPlates}
               showTectonicPlates={filters.showTectonicPlates}
               showHeatmap={filters.showHeatmap}
+              showSeismicRings={showSeismicRings}
               onEarthquakeClick={handleEarthquakeClick}
               animationSpeed={animationSpeed}
               timelapseProgress={isTimelapse ? timelapseProgress : -1}
+              flyToTarget={flyToTarget}
+              onFlyToComplete={handleFlyToComplete}
             />
           </ErrorBoundary>
+
+          {/* Cinematic Tour Overlay */}
+          {isTourActive && tourStops[tourIndex] && (
+            <div className="tour-overlay" aria-live="polite">
+              <div className="tour-badge">
+                <div className="tour-indicator">
+                  <span className="tour-pulse"></span>
+                  GUIDED TOUR
+                </div>
+                <div className="tour-counter">
+                  {tourIndex + 1} / {tourStops.length}
+                </div>
+              </div>
+              <div className="tour-card">
+                <div className="tour-card-mag">
+                  M{tourStops[tourIndex].magnitude.toFixed(1)}
+                </div>
+                <div className="tour-card-place">
+                  {tourStops[tourIndex].place}
+                </div>
+                <div className="tour-card-depth">
+                  Depth: {tourStops[tourIndex].depth.toFixed(1)} km
+                </div>
+                <div className="tour-card-time">
+                  {new Date(tourStops[tourIndex].time).toLocaleString()}
+                </div>
+                <div className="tour-progress">
+                  <div 
+                    className="tour-progress-fill"
+                    style={{ width: `${tourProgress * 100}%` }}
+                  />
+                </div>
+              </div>
+              <button 
+                className="tour-stop-btn"
+                onClick={handleTourStop}
+                aria-label="Stop guided tour"
+              >
+                Stop Tour (Esc)
+              </button>
+            </div>
+          )}
         </main>
 
         {error && (
@@ -258,6 +408,7 @@ function App() {
         <div className="status-bar" role="status" aria-live="polite">
           <span>Last updated: {lastUpdate.toLocaleTimeString()}</span>
           <span>Showing {filteredEarthquakes.length} earthquakes</span>
+          {showSeismicRings && <span className="status-rings">🌊 Seismic Waves</span>}
         </div>
       </div>
     </div>

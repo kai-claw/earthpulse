@@ -10,7 +10,10 @@ import {
   RotateCcw,
   Map,
   Activity,
-  Filter
+  Filter,
+  Radio,
+  Navigation,
+  Waves
 } from 'lucide-react';
 import { FilterState, Statistics, TimeRange, GlobePoint } from '../types';
 import { formatDate, formatRelativeTime, getMagnitudeDescription, getDepthDescription } from '../utils/helpers';
@@ -29,6 +32,11 @@ interface SidebarProps {
   onTimelapseReset: () => void;
   animationSpeed: number;
   onAnimationSpeedChange: (speed: number) => void;
+  showSeismicRings: boolean;
+  onToggleRings: () => void;
+  isTourActive: boolean;
+  onTourStart: () => void;
+  onTourStop: () => void;
 }
 
 const TIME_RANGES: TimeRange[] = [
@@ -52,7 +60,12 @@ export default function Sidebar({
   timelapseProgress,
   onTimelapseReset,
   animationSpeed,
-  onAnimationSpeedChange
+  onAnimationSpeedChange,
+  showSeismicRings,
+  onToggleRings,
+  isTourActive,
+  onTourStart,
+  onTourStop
 }: SidebarProps) {
   const [activeTab, setActiveTab] = useState<'controls' | 'stats' | 'info'>('controls');
 
@@ -274,6 +287,35 @@ export default function Sidebar({
                 )}
               </div>
             </div>
+
+            <div className="control-group">
+              <h4><Waves size={16} /> Experience</h4>
+              
+              <div className="control-item">
+                <button
+                  className={`experience-btn rings-btn ${showSeismicRings ? 'active' : ''}`}
+                  onClick={onToggleRings}
+                  aria-pressed={showSeismicRings}
+                  aria-label={showSeismicRings ? 'Hide seismic waves' : 'Show seismic waves'}
+                >
+                  <Radio size={16} />
+                  {showSeismicRings ? 'Seismic Waves On' : 'Seismic Waves Off'}
+                </button>
+              </div>
+
+              <div className="control-item">
+                <button
+                  className={`experience-btn tour-btn ${isTourActive ? 'active' : ''}`}
+                  onClick={isTourActive ? onTourStop : onTourStart}
+                  aria-pressed={isTourActive}
+                  aria-label={isTourActive ? 'Stop guided tour' : 'Start guided tour'}
+                >
+                  <Navigation size={16} />
+                  {isTourActive ? 'Stop Tour' : 'Guided Tour'}
+                </button>
+                <span className="control-hint">Fly through the biggest quakes</span>
+              </div>
+            </div>
           </div>
         )}
 
@@ -334,6 +376,18 @@ export default function Sidebar({
                 <li><span className="depth-color intermediate"></span> 35-70 km - Intermediate</li>
                 <li><span className="depth-color deep"></span> 70-300 km - Deep</li>
                 <li><span className="depth-color very-deep"></span> 300+ km - Very Deep</li>
+              </ul>
+            </div>
+
+            <div className="info-section">
+              <h5>Keyboard Shortcuts</h5>
+              <ul className="shortcut-list">
+                <li><kbd>Space</kbd> Toggle time-lapse</li>
+                <li><kbd>R</kbd> Reset time-lapse</li>
+                <li><kbd>G</kbd> Start/stop guided tour</li>
+                <li><kbd>W</kbd> Toggle seismic waves</li>
+                <li><kbd>P</kbd> Toggle sidebar</li>
+                <li><kbd>Esc</kbd> Close details / stop tour</li>
               </ul>
             </div>
 

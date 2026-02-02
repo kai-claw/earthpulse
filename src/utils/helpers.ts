@@ -156,3 +156,53 @@ export function getDepthDescription(depth: number): string {
   if (depth < 300) return 'Deep';
   return 'Very Deep';
 }
+
+/**
+ * Generate seismic ring data from earthquake points.
+ * Bigger quakes get bigger, slower rings. Recent quakes get faster repeat.
+ */
+export function generateSeismicRings(earthquakes: GlobePoint[]): {
+  lat: number;
+  lng: number;
+  maxR: number;
+  propagationSpeed: number;
+  repeatPeriod: number;
+  color: (t: number) => string;
+}[] {
+  // Show rings for significant quakes (M3+) to avoid visual clutter
+  const significant = earthquakes
+    .filter(q => q.magnitude >= 3.0)
+    .sort((a, b) => b.magnitude - a.magnitude)
+    .slice(0, 30); // Cap at 30 rings for performance
+
+  return significant.map(q => {
+    const mag = q.magnitude;
+    // Bigger quakes = bigger rings, slower propagation (feels more massive)
+    const maxR = Math.min(8, mag * 0.8);
+    const speed = Math.max(1, 6 - mag * 0.5);
+    // Recent quakes repeat faster (they're still "active")
+    const ageHours = (Date.now() - q.time) / (1000 * 60 * 60);
+    const repeat = Math.max(600, Math.min(3000, ageHours * 200 + 400));
+
+    // Color based on magnitude with alpha fade
+    const baseColor = mag >= 6 ? '255,50,50' : mag >= 4.5 ? '255,165,0' : '100,200,255';
+
+    return {
+      lat: q.lat,
+      lng: q.lng,
+      maxR,
+      propagationSpeed: speed,
+      repeatPeriod: repeat,
+      color: (t: number) => `rgba(${baseColor},${1 - t})`
+    };
+  });
+}
+
+/**
+ * Get the top N earthquakes sorted by magnitude for cinematic tour.
+ */
+export function getTourStops(earthquakes: GlobePoint[], count = 8): GlobePoint[] {
+  return [...earthquakes]
+    .sort((a, b) => b.magnitude - a.magnitude)
+    .slice(0, count);
+}

@@ -95,3 +95,19 @@ export interface Statistics {
   mostActiveRegion: string;
   averageDepth: number;
 }
+
+export interface SeismicRing {
+  lat: number;
+  lng: number;
+  maxRadius: number;
+  propagationSpeed: number;
+  repeatPeriod: number;
+  color: string;
+  magnitude: number;
+}
+
+export interface TourStop {
+  earthquake: GlobePoint;
+  index: number;
+  total: number;
+}
